@@ -5,11 +5,11 @@ using WackySpawners;
 // General Information about an assembly is controlled through the following 
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle(PieceManagerModTemplatePlugin.ModName)]
+[assembly: AssemblyTitle(WackySpawner.ModName)]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany(PieceManagerModTemplatePlugin.Author)]
-[assembly: AssemblyProduct(PieceManagerModTemplatePlugin.ModName)]
+[assembly: AssemblyCompany(WackySpawner.Author)]
+[assembly: AssemblyProduct(WackySpawner.ModName)]
 [assembly: AssemblyCopyright("Copyright ©  2022")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
@@ -32,5 +32,5 @@ using WackySpawners;
 // You can specify all the values or you can default the Build and Revision Numbers 
 // by using the '*' as shown below:
 // [assembly: AssemblyVersion("1.0.*")]
-[assembly: AssemblyVersion(PieceManagerModTemplatePlugin.ModVersion)]
-[assembly: AssemblyFileVersion(PieceManagerModTemplatePlugin.ModVersion)]
+[assembly: AssemblyVersion(WackySpawner.ModVersion)]
+[assembly: AssemblyFileVersion(WackySpawner.ModVersion)]

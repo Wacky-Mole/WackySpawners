@@ -4,21 +4,40 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using UnityEngine;
+using YamlDotNet.Serialization;
 
 namespace WackySpawners
 {
 
         public class YMLSpawnLoader
         {
-            public List<Spawner> GetSpawnAreaConfigs()
+
+        public List<Spawner> ConvertOldtoNew()
+        {
+            var serializer = new SerializerBuilder()
+            .WithNewLine("\n")
+            .Build();
+
+            var deslizer = new DeserializerBuilder().Build();
+            WackySpawns pieces =  deslizer.Deserialize<WackySpawns>(File.ReadAllText(WackySpawner.OldFile));
+            File.WriteAllText(WackySpawner.WackyFile, serializer.Serialize(pieces));
+            return pieces.spawners;
+
+        }
+
+
+
+        public List<Spawner> GetSpawnAreaConfigs()
             {
-            WackySpawns pieces = SimpleJson.SimpleJson.DeserializeObject<WackySpawns>(File.ReadAllText(CustomSpawners.FileDirectory));
+            var deslizer = new DeserializerBuilder().Build();
+            WackySpawns pieces = deslizer.Deserialize<WackySpawns>(File.ReadAllText(WackySpawner.WackyFile));
                 return pieces.spawners;
             }
 
-            public List<Spawner> GetSpawnAreaConfigs(string json)
+        public List<Spawner> GetSpawnAreaConfigs(string yml)
             {
-            WackySpawns pieces = SimpleJson.SimpleJson.DeserializeObject<WackySpawns>(json);
+            var deslizer = new DeserializerBuilder().Build();
+            WackySpawns pieces = deslizer.Deserialize<WackySpawns>(yml);
                 return pieces.spawners;
 
             }

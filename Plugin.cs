@@ -16,12 +16,14 @@ using System.Collections.Generic;
 using UnityEngine;
 using System.Linq;
 using Object = UnityEngine.Object;
-
+using Jotunn.Managers;
+using Jotunn.Utils;
+using YamlDotNet.Serialization;
 
 namespace WackySpawners
 {
     [BepInPlugin(ModGUID, ModName, ModVersion)]
-    public class PieceManagerModTemplatePlugin : BaseUnityPlugin
+    public class WackySpawner : BaseUnityPlugin
     {
         internal const string ModName = "WackySpawners";
         internal const string ModVersion = "1.0.0";
@@ -34,10 +36,13 @@ namespace WackySpawners
         internal static YMLSpawnLoader spawnClass;
 
 
-
+        internal static readonly CustomSyncedValue<string> spawnerInfo = new(ConfigSync, "wackySpawner", ""); // doesn't show up in config
         public static ConfigEntry<bool> IsSinglePlayer;
         public static string OldFile = BepInEx.Paths.ConfigPath + @"/Detalhes.CustomSpawners.json"; // old file to look for
         public static string WackyFile = BepInEx.Paths.ConfigPath + @"/WackyMole.CustomSpawners.yml";
+
+        internal static bool playerspawned = false;
+        internal static List<Spawner>  currentpieces = null;
 
 
         public static readonly ManualLogSource PieceManagerModTemplateLogger =
@@ -75,24 +80,63 @@ namespace WackySpawners
                     Jotunn.Logger.LogMessage("Config sync event received");
                 }
             }; */
-            if File.Exists
-            if (File.Exists(OldFile) && )
+            if (File.Exists(WackyFile)) {
+                currentpieces = spawnClass.GetSpawnAreaConfigs();
+
+            } else if (File.Exists(OldFile) )
             {
+                Logger.LogWarning("Converting Detalhes.CustomSpawners.json in WackyMole.CustomSpawners.yml, Will NOT Delete");
+                currentpieces = spawnClass.ConvertOldtoNew();
+            }
+            else
+            {
+                Logger.LogWarning("Createing Example File WackyMole.CustomSpawners.yml, please edit to your liking");
+
+                var paul = AssetUtils.LoadText("assets/WackyMole.CustomSpawners.yml");
+                var deslizer = new DeserializerBuilder().Build();
+                WackySpawns pieces = deslizer.Deserialize<WackySpawns>(paul);
+                var serializer = new SerializerBuilder()
+                    .WithNewLine("\n")
+                    .Build();
+
+                File.WriteAllText(WackySpawner.WackyFile, serializer.Serialize(pieces));
+                currentpieces = pieces.spawners;    
 
             }
+            //BuildPiece wacky = new BuildPiece("portal_wood", "portal_wood2", true);
+           
 
             _serverConfigLocked = config("1 - General", "Lock Configuration", Toggle.On,
                 "If on, the configuration is locked and can be changed by server admins only.");
             _ = ConfigSync.AddLockingConfigEntry(_serverConfigLocked);
 
+            //ConfigSync.
+
             // Globally turn off configuration options for your pieces, omit if you don't want to do this.
             BuildPiece.ConfigurationEnabled = false;
+
+            spawnerInfo.ValueChanged += CustomSpawnerSync;
 
             Assembly assembly = Assembly.GetExecutingAssembly();
             _harmony.PatchAll(assembly);
             SetupWatcher();
         }
 
+        private void CustomSpawnerSync()
+        {
+            if (ZNet.instance.IsServer() && ZNet.instance.IsDedicated())
+            {
+                 bool isDedServer = true;
+            }
+            if (hasAwake)
+            {
+                spawnClass.GetSpawnAreaConfigs();
+
+            }else
+            {
+                //wait
+            }
+        }
 
         public static bool hasAwake = false;
         [HarmonyPatch(typeof(Game), "Logout")]
@@ -113,9 +157,8 @@ namespace WackySpawners
                 if (hasAwake == true) return;
                 hasAwake = true;
 
-                if (IsSinglePlayer.Value) CreateClonedPiece(spawnClass.GetSpawnAreaConfigs()); // yml reader, 
-                else
-                    ZRoutedRpc.instance.InvokeRoutedRPC(ZRoutedRpc.instance.GetServerPeerID(), "FileSync", new ZPackage());
+                if (ConfigSync.IsSourceOfTruth) CreateClonedPiece(currentpieces); // yml reader, 
+
             }
         }
 
@@ -281,56 +324,6 @@ namespace WackySpawners
 
         #endregion
 
-
-        public GameObject CreateClonedPrefab(string name, string baseName)
-        {
-            if (string.IsNullOrEmpty(baseName))
-            {
-                Logger.LogWarning($"Failed to clone prefab with invalid baseName: {baseName}");
-                return null;
-            }
-
-            // Try to get the prefab
-            GameObject prefab = GetPrefab(baseName);
-            if (!prefab)
-            {
-                Logger.LogWarning($"Failed to clone prefab, can not find base prefab with name: {baseName}");
-                return null;
-            }
-
-            return CreateClonedPrefab(name, prefab);
-        }
-
-
-        /// <summary>
-        ///     Create a copy of a given prefab without modifying the original.
-        /// </summary>
-        /// <param name="name">Name of the new prefab.</param>
-        /// <param name="prefab">Prefab instance to copy.</param>
-        /// <returns>Newly created prefab object</returns>
-        public GameObject CreateClonedPrefab(string name, GameObject prefab)
-        {
-            if (string.IsNullOrEmpty(name))
-            {
-                Logger.LogWarning($"Failed to clone prefab with invalid name: {name}");
-                return null;
-            }
-            if (!prefab)
-            {
-                Logger.LogWarning($"Failed to clone prefab, base prefab is not valid");
-                return null;
-            }
-            if (GetPrefab(name))
-            {
-                Logger.LogWarning($"Failed to clone prefab, name already exists: {name}");
-                return null;
-            }
-
-            var newPrefab = Object.Instantiate(prefab, PrefabContainer.transform, false);
-            newPrefab.name = name;
-
-            return newPrefab;
-        }
     }
 
 
