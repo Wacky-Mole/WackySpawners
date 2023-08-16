@@ -128,12 +128,18 @@ namespace WackySpawners
             {
                  bool isDedServer = true;
             }
+
+            var deserializer = new DeserializerBuilder()
+                .IgnoreUnmatchedProperties() // future proofing
+                .Build(); // make sure to include all
+            currentpieces = deserializer.Deserialize<WackySpawns>(spawnerInfo.Value);
             if (hasAwake)
             {
                 spawnClass.GetSpawnAreaConfigs();
 
             }else
             {
+
                 //wait
             }
         }
