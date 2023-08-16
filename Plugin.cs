@@ -27,7 +27,7 @@ namespace WackySpawners
     {
         internal const string ModName = "WackySpawners";
         internal const string ModVersion = "1.0.0";
-        internal const string Author = "{azumatt}";
+        internal const string Author = "WackyMole";
         private const string ModGUID = Author + "." + ModName;
         private static string ConfigFileName = ModGUID + ".cfg";
         private static string ConfigFileFullPath = BepInEx.Paths.ConfigPath + Path.DirectorySeparatorChar + ConfigFileName;
@@ -36,7 +36,7 @@ namespace WackySpawners
         internal static YMLSpawnLoader spawnClass;
 
 
-        internal static readonly CustomSyncedValue<string> spawnerInfo = new(ConfigSync, "wackySpawner", ""); // doesn't show up in config
+        
         public static ConfigEntry<bool> IsSinglePlayer;
         public static string OldFile = BepInEx.Paths.ConfigPath + @"/Detalhes.CustomSpawners.json"; // old file to look for
         public static string WackyFile = BepInEx.Paths.ConfigPath + @"/WackyMole.CustomSpawners.yml";
@@ -51,6 +51,8 @@ namespace WackySpawners
         private static readonly ConfigSync ConfigSync = new(ModGUID)
         { DisplayName = ModName, CurrentVersion = ModVersion, MinimumRequiredVersion = ModVersion };
 
+        internal static readonly CustomSyncedValue<string> spawnerInfo = new(ConfigSync, "wackySpawner", ""); // doesn't show up in config
+
         public enum Toggle
         {
             On = 1,
@@ -59,27 +61,8 @@ namespace WackySpawners
 
         public void Awake()
         {
-            // Uncomment the line below to use the LocalizationManager for localizing your mod.
-            //Localizer.Load(); // Use this to initialize the LocalizationManager (for more information on LocalizationManager, see the LocalizationManager documentation https://github.com/blaxxun-boop/LocalizationManager#example-project).
+            spawnClass = new YMLSpawnLoader();
 
-            /*
-            Config.SaveOnConfigSet = true;
-
-            IsSinglePlayer = Config.Bind("Server config", "IsSinglePlayer", false,
-                    new ConfigDescription("IsSinglePlayer", null,
-                    new ConfigurationManagerAttributes { IsAdminOnly = true }));
-
-            SynchronizationManager.OnConfigurationSynchronized += (obj, attr) =>
-            {
-                if (attr.InitialSynchronization)
-                {
-                    Jotunn.Logger.LogMessage("Config sync event received");
-                }
-                else
-                {
-                    Jotunn.Logger.LogMessage("Config sync event received");
-                }
-            }; */
             if (File.Exists(WackyFile)) {
                 currentpieces = spawnClass.GetSpawnAreaConfigs();
 
@@ -103,14 +86,15 @@ namespace WackySpawners
                 currentpieces = pieces.spawners;    
 
             }
-            //BuildPiece wacky = new BuildPiece("portal_wood", "portal_wood2", true);
-           
 
+            //BuildPiece wacky = new BuildPiece("portal_wood", "portal_wood2", true);
+
+            BuildPiece chest = new BuildPiece("wackychest", "piece_chest_wacky");
+           
             _serverConfigLocked = config("1 - General", "Lock Configuration", Toggle.On,
                 "If on, the configuration is locked and can be changed by server admins only.");
             _ = ConfigSync.AddLockingConfigEntry(_serverConfigLocked);
 
-            //ConfigSync.
 
             // Globally turn off configuration options for your pieces, omit if you don't want to do this.
             BuildPiece.ConfigurationEnabled = false;
@@ -129,17 +113,18 @@ namespace WackySpawners
                  bool isDedServer = true;
             }
 
-            var deserializer = new DeserializerBuilder()
-                .IgnoreUnmatchedProperties() // future proofing
-                .Build(); // make sure to include all
-            currentpieces = deserializer.Deserialize<WackySpawns>(spawnerInfo.Value);
-            if (hasAwake)
+            if (hasAwake && spawnerInfo.Value != "")
             {
-                spawnClass.GetSpawnAreaConfigs();
+                Logger.LogInfo("Wacky.Spawners, Sync, reloading");
+                if (ConfigSync.IsSourceOfTruth) CreateandUpdateSpawnConfigs(currentpieces);
+                else
+                {
+                    currentpieces = spawnClass.GetSpawnAreaConfigs(spawnerInfo.Value);
+                    CreateandUpdateSpawnConfigs(currentpieces);
+                }
 
             }else
             {
-
                 //wait
             }
         }
@@ -154,6 +139,22 @@ namespace WackySpawners
             }
         }
 
+        [HarmonyPatch(typeof(ZNet), "Awake")]
+        public static class Serverload
+        {
+            private static void Postfix()
+            {
+                ZNet zNet = ZNet.instance;
+                if (zNet.IsServer())
+                {
+                    var serializer = new SerializerBuilder()
+                        .WithNewLine("\n")
+                         .Build();
+                    spawnerInfo.Value = serializer.Serialize(currentpieces);
+                }
+            }
+        }
+
 
         [HarmonyPatch(typeof(Player), "OnSpawned")]
         public static class OnSpawnedCheck
@@ -163,80 +164,116 @@ namespace WackySpawners
                 if (hasAwake == true) return;
                 hasAwake = true;
 
-                if (ConfigSync.IsSourceOfTruth) CreateClonedPiece(currentpieces); // yml reader, 
+                if (ConfigSync.IsSourceOfTruth) CreateandUpdateSpawnConfigs(currentpieces); // yml reader, 
+                else
+                {
+                    var deserializer = new DeserializerBuilder()
+                     .IgnoreUnmatchedProperties() // future proofing
+                     .Build(); // make sure to include all
+                        currentpieces = deserializer.Deserialize<WackySpawns>(spawnerInfo.Value).spawners;
+
+                    CreateandUpdateSpawnConfigs(currentpieces);
+                }
 
             }
         }
 
 
         [HarmonyPatch(typeof(SpawnArea), "UpdateSpawn")]
-        public class UpdateSpawn
+        public class UpdateSpawnView
         {
             public static bool Prefix(SpawnArea __instance) => __instance.m_nview;
         }
 
 
-        public static void CreateClonedPiece(List<Spawner> list)
+
+        public static void CreateandUpdateSpawnConfigs(List<Spawner> list)
         {
             var hammer = ObjectDB.instance.m_items.FirstOrDefault(x => x.name == "Hammer");
-
             if (!hammer)
             {
                 Debug.LogError("Custom Spawners - Hammer could not be loaded"); return;
             }
+
 
             PieceTable table = hammer.GetComponent<ItemDrop>().m_itemData.m_shared.m_buildPieces;
 
             foreach (Spawner areaConfig in list)
             {
                 string newName = "CS_" + string.Join("_", areaConfig.name);
+                bool skipcreation = false;
+                GameObject hold = null;
 
                 if (table.m_pieces.Exists(x => x.name == newName))
                 {
-                    continue;
+                    skipcreation = true ;
                 }
-                GameObject customSpawner = PrefabManager.Instance.CreateClonedPrefab(newName, areaConfig.prefabToCopy);
-                if (customSpawner == null)
+                if (!skipcreation)
                 {
-                    Debug.LogError("original prefab not found for " + areaConfig.prefabToCopy);
-                    continue;
+                    GameObject customSpawner = PrefabManager.Instance.CreateClonedPrefab(newName, areaConfig.prefabToCopy);
+                    if (customSpawner == null)
+                    {
+                        Debug.LogError("original prefab not found for " + areaConfig.prefabToCopy);
+                        continue;
+                    }
+
+                    customSpawner.GetComponent<ZNetView>().m_syncInitialScale = true;
+
+                    SpawnArea area = customSpawner.AddComponent<SpawnArea>();
+                    Piece piece = customSpawner.GetComponent<Piece>();
+                    if (piece is null) piece = customSpawner.AddComponent<Piece>();
+
+                    piece.m_description = areaConfig.name + " ";
+                    piece.name = customSpawner.name;
+                    hold = customSpawner;
                 }
 
-                customSpawner.GetComponent<ZNetView>().m_syncInitialScale = true;
+                // update section
+                GameObject currentcustomSpawner;
+                if (!skipcreation)
+                     currentcustomSpawner = hold;
+                else
+                    currentcustomSpawner = PrefabManager.Instance.GetPrefab(newName);
 
-                SpawnArea area = customSpawner.AddComponent<SpawnArea>();
-                Piece piece = customSpawner.GetComponent<Piece>();
-                if (piece is null) piece = customSpawner.AddComponent<Piece>();
-
-                piece.m_description = areaConfig.name + " ";
-                piece.name = customSpawner.name;
-
-                if (areaConfig.HitPoints > 0)
+                if (areaConfig.HitPoints > 0 )
                 {
-                    Destructible destructible = customSpawner.GetComponent<Destructible>();
-                    if (destructible is null) destructible = customSpawner.AddComponent<Destructible>();
-                    destructible.m_health = areaConfig.HitPoints;
-
+                    if (currentcustomSpawner.TryGetComponent<Destructible>(out Destructible de1)){
+                        de1.m_health = areaConfig.HitPoints;
+                    }else
+                    {
+                      var de2 = currentcustomSpawner.AddComponent<Destructible>();
+                      de2.m_health = areaConfig.HitPoints;
+                    }
                 }
                 else
                 {
-                    UnityEngine.Object.Destroy(customSpawner.GetComponent<Destructible>());
+                    if (currentcustomSpawner.TryGetComponent<Destructible>(out Destructible de3))
+                        UnityEngine.Object.Destroy(currentcustomSpawner.GetComponent<Destructible>());
                 }
+                
 
-                Object.Destroy(customSpawner.GetComponent<WearNTear>());
+                if (currentcustomSpawner.TryGetComponent<WearNTear>(out WearNTear temp))
+                    Object.Destroy(currentcustomSpawner.GetComponent<WearNTear>());
+                temp = null;
 
-                area.m_spawnTimer = areaConfig.m_spawnTimer;
-                area.m_onGroundOnly = areaConfig.m_onGroundOnly;
-                area.m_maxTotal = areaConfig.m_maxTotal;
-                area.m_maxNear = areaConfig.m_maxNear;
-                area.m_farRadius = areaConfig.m_farRadius;
-                area.m_spawnRadius = areaConfig.m_spawnRadius;
-                area.m_setPatrolSpawnPoint = areaConfig.m_setPatrolSpawnPoint;
-                area.m_triggerDistance = areaConfig.m_triggerDistance;
-                area.m_spawnIntervalSec = areaConfig.m_spawnIntervalSec;
-                area.m_levelupChance = areaConfig.m_levelupChance;
-                area.m_nearRadius = areaConfig.m_nearRadius;
-                area.m_prefabs = new List<SpawnArea.SpawnData>();
+                SpawnArea area2 = currentcustomSpawner.GetComponent<SpawnArea>();
+                Piece piece2 = currentcustomSpawner.GetComponent<Piece>();
+
+                area2.m_spawnTimer = areaConfig.m_spawnTimer;
+                area2.m_onGroundOnly = areaConfig.m_onGroundOnly;
+                area2.m_maxTotal = areaConfig.m_maxTotal;
+                area2.m_maxNear = areaConfig.m_maxNear;
+                area2.m_farRadius = areaConfig.m_farRadius;
+                area2.m_spawnRadius = areaConfig.m_spawnRadius;
+                area2.m_setPatrolSpawnPoint = areaConfig.m_setPatrolSpawnPoint;
+                area2.m_triggerDistance = areaConfig.m_triggerDistance;
+                area2.m_spawnIntervalSec = areaConfig.m_spawnIntervalSec;
+                area2.m_levelupChance = areaConfig.m_levelupChance;
+                area2.m_nearRadius = areaConfig.m_nearRadius;
+                area2.m_prefabs = new List<SpawnArea.SpawnData>();
+                piece2.m_description = areaConfig.name + " ";
+                piece2.name = currentcustomSpawner.name;
+
 
                 foreach (string prefab in areaConfig.m_prefabName.Split(','))
                 {
@@ -245,19 +282,23 @@ namespace WackySpawners
                     newArea.m_minLevel = areaConfig.minLevel;
                     newArea.m_maxLevel = areaConfig.maxLevel;
                     newArea.m_prefab = PrefabManager.Instance.GetPrefab(prefab);
-                    piece.m_description += prefab + " ";
+                    piece2.m_description += prefab + " ";
                     if (newArea.m_prefab == null) continue;
 
-                    area.m_prefabs.Add(newArea);
+                    area2.m_prefabs.Add(newArea);
                 }
 
-                Jotunn.Managers.PieceManager.Instance.RegisterPieceInPieceTable(customSpawner, "Hammer", "Custom Spawners");
-
-                if (!SynchronizationManager.Instance.PlayerIsAdmin)
+                if (!skipcreation)
                 {
-                    table.m_pieces.Remove(customSpawner);
+                    Jotunn.Managers.PieceManager.Instance.RegisterPieceInPieceTable(currentcustomSpawner, "Hammer", "Custom Spawners");
+
+                    if (!SynchronizationManager.Instance.PlayerIsAdmin)
+                    {
+                        table.m_pieces.Remove(currentcustomSpawner);
+                    }
                 }
             }
+
         }
 
 
@@ -272,9 +313,37 @@ namespace WackySpawners
             watcher.Changed += ReadConfigValues;
             watcher.Created += ReadConfigValues;
             watcher.Renamed += ReadConfigValues;
-            watcher.IncludeSubdirectories = true;
+            watcher.IncludeSubdirectories = false;
             watcher.SynchronizingObject = ThreadingHelper.SynchronizingObject;
             watcher.EnableRaisingEvents = true;
+
+            if (!File.Exists(WackyFile)) return;
+            FileSystemWatcher watcher2 = new(BepInEx.Paths.ConfigPath, "WackyMole.CustomSpawners.yml");
+            watcher2.Changed += ReadSpawnerValues;
+            watcher2.Created += ReadSpawnerValues;
+            watcher2.Renamed += ReadSpawnerValues;
+            watcher2.IncludeSubdirectories = false;
+            watcher2.SynchronizingObject = ThreadingHelper.SynchronizingObject;
+            watcher2.EnableRaisingEvents = true;
+        }
+        private void ReadSpawnerValues (object sender, FileSystemEventArgs e)
+        {
+            if (!File.Exists(WackyFile)) return;
+
+            ZNet zNet = ZNet.instance;
+            if (zNet == null) return;
+            if (zNet.IsServer())
+            {
+                Logger.LogInfo("Spawners file changed, reloading");
+
+                currentpieces = spawnClass.GetSpawnAreaConfigs();
+                var serializer = new SerializerBuilder()
+                .WithNewLine("\n")
+                    .Build();
+
+                spawnerInfo.Value = serializer.Serialize(currentpieces);
+            }
+
         }
 
         private void ReadConfigValues(object sender, FileSystemEventArgs e)

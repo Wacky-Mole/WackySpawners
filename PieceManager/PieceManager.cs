@@ -238,7 +238,7 @@ public class BuildPiece
         PiecePrefabManager.RegisterAssetBundle(assetBundleFileName, folderName), prefabName)
     {
     }
-    public BuildPiece(string prefabName, string newName, bool mock = true) : this(
+    public BuildPiece(string prefabName, string newName, bool mock ) : this(
         PiecePrefabManager.Searchforprefab(prefabName), newName)
     {
     }

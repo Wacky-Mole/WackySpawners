@@ -15,7 +15,7 @@ spawners:
   m_nearRadius: 0
   minLevel: 1
   maxLevel: 3
-  HitPoints: 3000
+  HitPoints: 600
   
 - name: DeersAndBoars
   prefabToCopy: woodwall
@@ -33,7 +33,7 @@ spawners:
   m_nearRadius: 0
   minLevel: 1
   maxLevel: 3
-  HitPoints: 1000
+  HitPoints: 400
   
 - name: Ghosts
   prefabToCopy: piece_banner01
@@ -51,7 +51,7 @@ spawners:
   m_nearRadius: 0
   minLevel: 1
   maxLevel: 3
-  HitPoints: 100000
+  HitPoints: 0
   
 - name: Skeletons
   prefabToCopy: piece_banner01
@@ -69,6 +69,7 @@ spawners:
   m_nearRadius: 0
   minLevel: 1
   maxLevel: 3
+  HitPoints: 0
   
 - name: OUTSIDERS
   prefabToCopy: stone_wall_1x1
