@@ -61,6 +61,7 @@ namespace WackySpawners
 
         public void Awake()
         {
+
             spawnClass = new YMLSpawnLoader();
 
             if (File.Exists(WackyFile)) {
@@ -90,6 +91,9 @@ namespace WackySpawners
             //BuildPiece wacky = new BuildPiece("portal_wood", "portal_wood2", true);
 
             BuildPiece chest = new BuildPiece("wackychest", "piece_chest_wacky");
+            chest.SpecialProperties.AdminOnly = true;
+            chest.Snapshot();
+            
            
             _serverConfigLocked = config("1 - General", "Lock Configuration", Toggle.On,
                 "If on, the configuration is locked and can be changed by server admins only.");
@@ -128,6 +132,7 @@ namespace WackySpawners
                 //wait
             }
         }
+
 
         public static bool hasAwake = false;
         [HarmonyPatch(typeof(Game), "Logout")]
