@@ -19,6 +19,8 @@ using Object = UnityEngine.Object;
 using Jotunn.Managers;
 using Jotunn.Utils;
 using YamlDotNet.Serialization;
+using UnityEngine.XR;
+using System.Diagnostics;
 
 namespace WackySpawners
 {
@@ -26,7 +28,7 @@ namespace WackySpawners
     public class WackySpawner : BaseUnityPlugin
     {
         internal const string ModName = "WackySpawners";
-        internal const string ModVersion = "1.0.0";
+        internal const string ModVersion = "1.0.1";
         internal const string Author = "WackyMole";
         private const string ModGUID = Author + "." + ModName;
         private static string ConfigFileName = ModGUID + ".cfg";
@@ -34,15 +36,19 @@ namespace WackySpawners
         internal static string ConnectionError = "";
         private readonly Harmony _harmony = new(ModGUID);
         internal static YMLSpawnLoader spawnClass;
+        internal static string assetPath;
+        internal static string assetPathWacky;
 
 
-        
+
         public static ConfigEntry<bool> IsSinglePlayer;
         public static string OldFile = BepInEx.Paths.ConfigPath + @"/Detalhes.CustomSpawners.json"; // old file to look for
         public static string WackyFile = BepInEx.Paths.ConfigPath + @"/WackyMole.CustomSpawners.yml";
+        public static string WackyYML= "WackyMole.CustomSpawners.yml";
 
         internal static bool playerspawned = false;
-        internal static List<Spawner>  currentpieces = null;
+        //internal static List<Spawner>  currentpieces = null;
+        internal static WackySpawns ymlspawn = null;
 
 
         public static readonly ManualLogSource PieceManagerModTemplateLogger =
@@ -62,29 +68,37 @@ namespace WackySpawners
         public void Awake()
         {
 
+            assetPathWacky = Path.Combine(BepInEx.Paths.ConfigPath, WackyYML);
             spawnClass = new YMLSpawnLoader();
 
-            if (File.Exists(WackyFile)) {
-                currentpieces = spawnClass.GetSpawnAreaConfigs();
+            if (File.Exists(assetPathWacky)) {
+                ymlspawn = spawnClass.GetSpawnAreaConfigs();
 
             } else if (File.Exists(OldFile) )
             {
                 Logger.LogWarning("Converting Detalhes.CustomSpawners.json in WackyMole.CustomSpawners.yml, Will NOT Delete");
-                currentpieces = spawnClass.ConvertOldtoNew();
+                ymlspawn = spawnClass.ConvertOldtoNew();
             }
             else
             {
                 Logger.LogWarning("Createing Example File WackyMole.CustomSpawners.yml, please edit to your liking");
 
-                var paul = AssetUtils.LoadText("assets/WackyMole.CustomSpawners.yml");
+                var paul = ReadEmbeddedFileBytes("WackyMole.CustomSpawners.yml");
+                File.WriteAllBytes(assetPathWacky, paul);
+                var pete = File.ReadAllText(assetPathWacky);
+
+                //Logger.LogWarning(paul);
+               // Logger.LogWarning(bitString);
                 var deslizer = new DeserializerBuilder().Build();
-                WackySpawns pieces = deslizer.Deserialize<WackySpawns>(paul);
+                WackySpawns pieces = deslizer.Deserialize<WackySpawns>(pete);
+                /*
                 var serializer = new SerializerBuilder()
                     .WithNewLine("\n")
                     .Build();
 
-                File.WriteAllText(WackySpawner.WackyFile, serializer.Serialize(pieces));
-                currentpieces = pieces.spawners;    
+                File.WriteAllText(assetPathWacky, serializer.Serialize(pieces)); */
+                //currentpieces = pieces.spawners;
+                ymlspawn = pieces;
 
             }
 
@@ -113,26 +127,34 @@ namespace WackySpawners
                  bool isDedServer = true;
             }
 
+            if(ConfigSync.IsSourceOfTruth) return;  // no need to get data if singleplayer
+
+            Logger.LogInfo("Wacky.Spawners, Sync, reloading");
             if (hasAwake && spawnerInfo.Value != "")
             {
-                Logger.LogInfo("Wacky.Spawners, Sync, reloading");
-                if (ConfigSync.IsSourceOfTruth) CreateandUpdateSpawnConfigs(currentpieces);
-                else
-                {
-                    currentpieces = spawnClass.GetSpawnAreaConfigs(spawnerInfo.Value);
-                    CreateandUpdateSpawnConfigs(currentpieces);
-                }
-
-            }else
+                var copystring = spawnerInfo.Value;
+                ymlspawn = spawnClass.GetSpawnAreaConfigs(copystring);                
+                CreateandUpdateSpawnConfigs(ymlspawn.spawners);// and relad
+                
+            }else if (spawnerInfo.Value != "")
             {
-                //wait
+                var copystring = spawnerInfo.Value;
+                ymlspawn = spawnClass.GetSpawnAreaConfigs(copystring);            
+
             }
+        }
+
+        private byte[] ReadEmbeddedFileBytes(string name)
+        {
+            using MemoryStream stream = new();
+            Assembly.GetExecutingAssembly().GetManifestResourceStream(ModName + "." + name)?.CopyTo(stream);
+            return stream.ToArray();
         }
 
 
         public static bool hasAwake = false;
         [HarmonyPatch(typeof(Game), "Logout")]
-        public static class LogoutCheck
+        public static class LogoutCheckWAc
         {
             private static void Postfix()
             {
@@ -141,7 +163,7 @@ namespace WackySpawners
         }
 
         [HarmonyPatch(typeof(ZNet), "Awake")]
-        public static class Serverload
+        public static class ServerloadWac
         {
             private static void Postfix()
             {
@@ -149,32 +171,22 @@ namespace WackySpawners
                 if (zNet.IsServer())
                 {
                     var serializer = new SerializerBuilder()
-                        .WithNewLine("\n")
+                       // .WithNewLine("\n")
                          .Build();
-                    spawnerInfo.Value = serializer.Serialize(currentpieces);
+                    spawnerInfo.Value = serializer.Serialize(ymlspawn);
                 }
             }
         }
 
 
         [HarmonyPatch(typeof(Player), "OnSpawned")]
-        public static class OnSpawnedCheck
+        public static class OnSpawnedCheckSpawnerWac
         {
             private static void Postfix()
             {
                 if (hasAwake == true) return;
                 hasAwake = true;
-
-                if (ConfigSync.IsSourceOfTruth) CreateandUpdateSpawnConfigs(currentpieces); // yml reader, 
-                else
-                {
-                    var deserializer = new DeserializerBuilder()
-                     .IgnoreUnmatchedProperties() // future proofing
-                     .Build(); // make sure to include all
-                        currentpieces = deserializer.Deserialize<WackySpawns>(spawnerInfo.Value).spawners;
-
-                    CreateandUpdateSpawnConfigs(currentpieces);
-                }
+                CreateandUpdateSpawnConfigs(ymlspawn.spawners);      
 
             }
         }
@@ -189,10 +201,16 @@ namespace WackySpawners
 
         public static void CreateandUpdateSpawnConfigs(List<Spawner> list)
         {
+            if (list == null || list.Count == 0)
+            {
+                UnityEngine.Debug.LogWarning("list was empty for spawners");
+                return;
+            }
+
             var hammer = ObjectDB.instance.m_items.FirstOrDefault(x => x.name == "Hammer");
             if (!hammer)
             {
-                Debug.LogError("Custom Spawners - Hammer could not be loaded"); return;
+                UnityEngine.Debug.LogError("Custom Spawners - Hammer could not be loaded"); return;
             }
 
 
@@ -213,7 +231,7 @@ namespace WackySpawners
                     GameObject customSpawner = PrefabManager.Instance.CreateClonedPrefab(newName, areaConfig.prefabToCopy);
                     if (customSpawner == null)
                     {
-                        Debug.LogError("original prefab not found for " + areaConfig.prefabToCopy);
+                        UnityEngine.Debug.LogError("original prefab not found for " + areaConfig.prefabToCopy);
                         continue;
                     }
 
@@ -318,7 +336,7 @@ namespace WackySpawners
             watcher.EnableRaisingEvents = true;
 
             if (!File.Exists(WackyFile)) return;
-            FileSystemWatcher watcher2 = new(BepInEx.Paths.ConfigPath, "WackyMole.CustomSpawners.yml");
+            FileSystemWatcher watcher2 = new(BepInEx.Paths.ConfigPath, WackyYML);
             watcher2.Changed += ReadSpawnerValues;
             watcher2.Created += ReadSpawnerValues;
             watcher2.Renamed += ReadSpawnerValues;
@@ -336,12 +354,15 @@ namespace WackySpawners
             {
                 Logger.LogInfo("Spawners file changed, reloading");
 
-                currentpieces = spawnClass.GetSpawnAreaConfigs();
+                ymlspawn = spawnClass.GetSpawnAreaConfigs();
                 var serializer = new SerializerBuilder()
                 .WithNewLine("\n")
                     .Build();
 
-                spawnerInfo.Value = serializer.Serialize(currentpieces);
+                spawnerInfo.Value = serializer.Serialize(ymlspawn);
+
+                if (ConfigSync.IsSourceOfTruth)
+                    CreateandUpdateSpawnConfigs(ymlspawn.spawners); // update singleplayer or host
             }
 
         }

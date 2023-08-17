@@ -12,7 +12,7 @@ namespace WackySpawners
         public class YMLSpawnLoader
         {
 
-        public List<Spawner> ConvertOldtoNew()
+        public WackySpawns ConvertOldtoNew()
         {
             var serializer = new SerializerBuilder()
             .WithNewLine("\n")
@@ -21,24 +21,29 @@ namespace WackySpawners
             var deslizer = new DeserializerBuilder().Build();
             WackySpawns pieces =  deslizer.Deserialize<WackySpawns>(File.ReadAllText(WackySpawner.OldFile));
             File.WriteAllText(WackySpawner.WackyFile, serializer.Serialize(pieces));
-            return pieces.spawners;
-
+            //WackySpawner.ymlspawn = pieces;
+            return pieces;
         }
 
 
-
-        public List<Spawner> GetSpawnAreaConfigs()
+        public WackySpawns GetSpawnAreaConfigs()
             {
             var deslizer = new DeserializerBuilder().Build();
-            WackySpawns pieces = deslizer.Deserialize<WackySpawns>(File.ReadAllText(WackySpawner.WackyFile));
-                return pieces.spawners;
+            WackySpawns pieces = deslizer.Deserialize<WackySpawns>(File.ReadAllText(WackySpawner.assetPathWacky));
+            //WackySpawner.ymlspawn = pieces;
+            return pieces;
             }
 
-        public List<Spawner> GetSpawnAreaConfigs(string yml)
+        public WackySpawns GetSpawnAreaConfigs(string yml)
             {
-            var deslizer = new DeserializerBuilder().Build();
-            WackySpawns pieces = deslizer.Deserialize<WackySpawns>(yml);
-                return pieces.spawners;
+
+                var deslizer = new DeserializerBuilder()
+                         .IgnoreUnmatchedProperties() // future proofing
+                         .Build(); // make sure to include all
+
+                var pieces = deslizer.Deserialize<WackySpawns>(yml);
+                return pieces;
+           
 
             }
         }

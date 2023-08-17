@@ -113,7 +113,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
-    <EmbeddedResource Include="assets\WackyMole.CustomSpawners.yml">
+    <EmbeddedResource Include="WackyMole.CustomSpawners.yml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </EmbeddedResource>
   </ItemGroup>
