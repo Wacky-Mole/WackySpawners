@@ -89,10 +89,6 @@ namespace WackySpawners
             }
 
             //BuildPiece wacky = new BuildPiece("portal_wood", "portal_wood2", true);
-
-            BuildPiece chest = new BuildPiece("wackychest", "piece_chest_wacky");
-            chest.SpecialProperties.AdminOnly = true;
-            chest.Snapshot();
             
            
             _serverConfigLocked = config("1 - General", "Lock Configuration", Toggle.On,
@@ -189,7 +185,6 @@ namespace WackySpawners
         {
             public static bool Prefix(SpawnArea __instance) => __instance.m_nview;
         }
-
 
 
         public static void CreateandUpdateSpawnConfigs(List<Spawner> list)

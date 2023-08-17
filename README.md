@@ -1,122 +1,70 @@
-## Follow this video to learn how to use this template effectively: https://www.youtube.com/watch?v=ws7Lq8tRWlI&t
-
-# Piece Manager
-
-Can be used to easily add new building pieces to Valheim. Will automatically add config options to your mod and sync the
-configuration from a server, if the mod is installed on the server as well.
-
-## How to add pieces
-
-Copy the asset bundle into your project and make sure to set it as an EmbeddedResource in the properties of the asset
-bundle. Default path for the asset bundle is an `assets` directory, but you can override this. This way, you don't have
-to distribute your assets with your mod. They will be embedded into your mods DLL.
-
-### Merging the DLLs into your mod
-
-Download the PieceManager.dll and the ServerSync.dll from the release section to the right. Including the DLLs is best
-done via ILRepack (https://github.com/ravibpatel/ILRepack.Lib.MSBuild.Task). You can load this package (
-ILRepack.Lib.MSBuild.Task) from NuGet.
-
-If you have installed ILRepack via NuGet, simply create a file named `ILRepack.targets` in your project and copy the
-following content into the file
-
-```xml
-<?xml version="1.0" encoding="utf-8"?>
-<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-    <Target Name="ILRepacker" AfterTargets="Build">
-        <ItemGroup>
-            <InputAssemblies Include="$(TargetPath)"/>
-            <InputAssemblies Include="$(OutputPath)\PieceManager.dll"/>
-            <InputAssemblies Include="$(OutputPath)\ServerSync.dll"/>
-        </ItemGroup>
-        <ILRepack Parallel="true" DebugInfo="true" Internalize="true" InputAssemblies="@(InputAssemblies)"
-                  OutputFile="$(TargetPath)" TargetKind="SameAsPrimaryAssembly" LibraryPath="$(OutputPath)"/>
-    </Target>
-</Project>
-```
-
-Make sure to set the PieceManager.dll and the ServerSync.dll in your project to "Copy to output directory" in the
-properties of the DLLs and to add a reference to it. After that, simply add `using PieceManager;` to your mod and use
-the `BuildPiece` class, to add your items.
-
-## Example project
-
-This adds three different pieces from two different asset bundles. The `funward` asset bundle is in a directory
-called `FunWard`, while the `bamboo` asset bundle is in a directory called `assets`.
-
-```csharp
-using System.IO;
-using BepInEx;
-using HarmonyLib;
-using PieceManager;
-
-namespace PieceManagerExampleMod
-{
-    [BepInPlugin(ModGUID, ModName, ModVersion)]
-    public class PieceManagerExampleMod : BaseUnityPlugin
-    {
-        private const string ModName = "PieceManagerExampleMod";
-        private const string ModVersion = "1.0.0";
-        internal const string Author = "azumatt";
-        private const string ModGUID = Author + "." + ModName;
-        private static string ConfigFileName = ModGUID + ".cfg";
-        private static string ConfigFileFullPath = Paths.ConfigPath + Path.DirectorySeparatorChar + ConfigFileName;
-
-        private void Awake()
-        {
-            // Globally turn off configuration options for your pieces, omit if you don't want to do this.
-            BuildPiece.ConfigurationEnabled = false;
-            
-            // Format: new("AssetBundleName", "PrefabName", "FolderName");
-            BuildPiece examplePiece1 = new("funward", "funward", "FunWard");
-
-            examplePiece1.Name.English("Fun Ward"); // Localize the name and description for the building piece for a language.
-            examplePiece1.Description.English("Ward For testing the Piece Manager");
-            examplePiece1.RequiredItems.Add("FineWood", 20, false); // Set the required items to build. Format: ("PrefabName", Amount, Recoverable)
-            examplePiece1.RequiredItems.Add("SurtlingCore", 20, false);
-            examplePiece1.Category.Add(BuildPieceCategory.Misc);
-            examplePiece1.Crafting.Set(CraftingTable.ArtisanTable); // Set a crafting station requirement for the piece.
-            examplePiece1.Extension.Set(CraftingTable.Forge, 2); // Makes this piece a station extension, can change the max station distance by changing the second value. Use strings for custom tables.
-            //examplePiece1.Crafting.Set("CUSTOMTABLE"); // If you have a custom table you're adding to the game. Just set it like this.
-            
-            //examplePiece1.SpecialProperties.NoConfig = true;  // Do not generate a config for this piece, omit this line of code if you want to generate a config.
-            examplePiece1.SpecialProperties = new SpecialProperties() { AdminOnly = true, NoConfig = true}; // You can declare multiple properties in one line           
+# Wacky Spawners
 
 
-            BuildPiece examplePiece2 = new("bamboo", "Bamboo_Wall"); // Note: If you wish to use the default "assets" folder for your assets, you can omit it!
-            examplePiece2.Name.English("Bamboo Wall");
-            examplePiece2.Description.English("A wall made of bamboo!");
-            examplePiece2.RequiredItems.Add("BambooLog", 20, false);
-            examplePiece2.Category.Add(BuildPieceCategory.Building);
-            examplePiece2.Crafting.Set("CUSTOMTABLE"); // If you have a custom table you're adding to the game. Just set it like this.
-            examplePiece2.SpecialProperties.AdminOnly = true;  // You can declare these one at a time as well!.
+
+This is a replacement for Custom Spawners: [https://valheim.thunderstore.io/package/Detalhes/CustomSpawners/](https://valheim.thunderstore.io/package/Detalhes/CustomSpawners/)
+
+While Custom Spawners still works, it lacks documentation and examples.
+spawnerUI.png
+
+#### Dynamic Monster Spawning: The mod enables the creation of monster spawners that generate monsters based on configurable parameters.
+![Custom Spawners](https://wackymole.com/hosts/spawnerUI.png)
+## Features:
+
+- Custom monster spawner for specific places in Dungeons/Temples, etc.
+- Attaches spawner to ordinary objects, so they don't look out of place.
+- 0 health means invincible.
+- Highly customizable.
+
+All created spawners will appear in the hammer; only admins can build them.
+
+## New Features:
+
+- Drop-in replacement converts JSON to YAML.
+- Replaced RPC calls with ServerSync.
+- Added Filewatcher for YAML, live updates.
+- Will probably drop JVL in the future.
+- Default file will be created if none exist, with examples.
+
+### WackyMole.CustomSpawners.yml
+
+Configuration Parameters
+
+Live updates for new pieces, existing ones might not. 
+
+- name (string): Name of the monster spawner. - (Can't change without reboot)
+- prefabToCopy (string): Prefab to copy when creating monsters. (Can't change without reboot)
+- m_spawnTimer (int): Just appears to be the counter: doesn't really do anything.
+- m_onGroundOnly (bool): Set to true to spawn monsters only on the ground.
+- m_maxTotal (int): Maximum total spawned monsters.
+- m_maxNear (int): Maximum monsters in the NEAR proximity of the spawner.
+- m_farRadius (int): What determintes a FAR Radius.
+- m_spawnRadius (int): Radius within which monsters can spawn.
+- m_setPatrolSpawnPoint (bool): Set to true to enable patrol spawn points for monsters. 
+- m_triggerDistance (int): Distance at which players trigger monster spawns.
+- m_spawnIntervalSec (int): Time interval between monster spawns (in seconds).
+- m_levelupChance (int): Chance for monsters to level up when spawned.
+- m_prefabName (string): Name of the spawned monster prefab.
+- m_nearRadius (int): What determines a NEAR Radius
+- minLevel (int): Minimum level for spawned monsters.
+- maxLevel (int): Maximum level for spawned monsters.
+- HitPoints (int): Hit points for spawned piece. A 0 is infinite, 400 is the standard health of a portal.
 
 
-            // If you want to add your item to the cultivator or another hammer with vanilla categories
-            // Format: (AssetBundle, "PrefabName", addToCustom, "Item that has a piecetable")
-            BuildPiece examplePiece3 = new(PiecePrefabManager.RegisterAssetBundle("bamboo"), "Bamboo_Sapling", true, "Cultivator");
-            examplePiece3.Name.English("Bamboo Sapling");
-            examplePiece3.Description.English("A young bamboo tree, called a sapling");
-            examplePiece3.RequiredItems.Add("BambooSeed", 20, false);
-            examplePiece3.SpecialProperties.NoConfig = true;
-            
-            // If you don't want to make an icon inside unity, but want the PieceManager to snag one for you, simply add .Snapshot() to your piece.
-            examplePiece3.Snapshot(); // Optionally, you can use the lightIntensity parameter to set the light intensity of the snapshot. Default is 1.3 or the cameraRotation parameter to set the rotation of the camera. Default is null.
+### Credits:
+Detalhes and all his mods https://valheim.thunderstore.io/package/Detalhes/
 
-            // Need to add something to ZNetScene but not the hammer, cultivator or other? 
-            PiecePrefabManager.RegisterPrefab("bamboo", "Bamboo_Beam_Light");
-            
-            // Does your model need to swap materials with a vanilla material? Format: (GameObject, isJotunnMock)
-            MaterialReplacer.RegisterGameObjectForMatSwap(examplePiece3.Prefab, false);
-            
-            // Does your model use a shader from the game like Custom/Creature or Custom/Piece in unity? Need it to "just work"?
-            MaterialReplacer.RegisterGameObjectForShaderSwap(examplePiece3.Prefab, MaterialReplacer.ShaderType.UseUnityShader);
-            
-            // What if you want to use a custom shader from the game (like Custom/Piece that allows snow!!!) but your unity shader isn't set to Custom/Piece? Format: (GameObject, MaterialReplacer.ShaderType.)
-            //MaterialReplacer.RegisterGameObjectForShaderSwap(examplePiece3.Prefab, MaterialReplacer.ShaderType.PieceShader);
+Azumatt and his template.
 
-            // Detailed instructions on how to use the MaterialReplacer can be found on the current PieceManager Wiki. https://github.com/AzumattDev/PieceManager/wiki
-        }
-    }
-}
-```
+JVL Team
+
+For questions or suggestions please join discord channel: [Odin Plus Team](https://discord.gg/odinplus) or my discord at [Wolf Den](https://discord.gg/yPj7xjs3Xf)
+
+Support me at https://www.buymeacoffee.com/WackyMole  or https://ko-fi.com/wackymole
+
+
+
+### ChangeLog
+        
+        Version 1.0.0 - Release
+
