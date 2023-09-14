@@ -28,7 +28,7 @@ namespace WackySpawners
     public class WackySpawner : BaseUnityPlugin
     {
         internal const string ModName = "WackySpawners";
-        internal const string ModVersion = "1.0.1";
+        internal const string ModVersion = "1.0.2";
         internal const string Author = "WackyMole";
         private const string ModGUID = Author + "." + ModName;
         private static string ConfigFileName = ModGUID + ".cfg";
@@ -244,6 +244,10 @@ namespace WackySpawners
                     piece.m_description = areaConfig.name + " ";
                     piece.name = customSpawner.name;
                     hold = customSpawner;
+                    foreach (var pi in piece.m_resources)
+                    {
+                        pi.m_recover = false;
+                    }
                 }
 
                 // update section
@@ -291,6 +295,7 @@ namespace WackySpawners
                 area2.m_prefabs = new List<SpawnArea.SpawnData>();
                 piece2.m_description = areaConfig.name + " ";
                 piece2.name = currentcustomSpawner.name;
+
 
 
                 foreach (string prefab in areaConfig.m_prefabName.Split(','))
