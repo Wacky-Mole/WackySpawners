@@ -1,10 +1,10 @@
 {
   "name": "WackySpawners",
-  "version_number": "1.0.3",
+  "version_number": "1.0.4",
   "website_url": "",
   "description": "Let you create indestructible or destructible, mob spawners with any piece appearance",
   "dependencies": [
-    "denikson-BepInExPack_Valheim-5.4.2105",
-	"ValheimModding-Jotunn-2.12.4"
+    "denikson-BepInExPack_Valheim-5.4.2205",
+	"ValheimModding-Jotunn-2.14.3"
   ]
 }

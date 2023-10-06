@@ -12,9 +12,9 @@ using BepInEx;
 using BepInEx.Configuration;
 using HarmonyLib;
 using JetBrains.Annotations;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
-using static CharacterAnimEvent;
 using Object = UnityEngine.Object;
 
 namespace PieceManager;
@@ -238,23 +238,6 @@ public class BuildPiece
         PiecePrefabManager.RegisterAssetBundle(assetBundleFileName, folderName), prefabName)
     {
     }
-    public BuildPiece(string prefabName, string newName, bool mock ) : this(
-        PiecePrefabManager.Searchforprefab(prefabName), newName)
-    {
-    }
-
-    public BuildPiece(GameObject existingPrefab, string newPrefab)
-    {
-        if (existingPrefab != null)
-        {
-            Prefab = PiecePrefabManager.RegisterPrefab(existingPrefab, newPrefab);
-            registeredPieces.Add(this);
-        }
-        else
-        {
-            Debug.LogWarning(existingPrefab.name + " Not found for mock");
-        }
-    }
 
     public BuildPiece(AssetBundle bundle, string prefabName)
     {
@@ -302,7 +285,7 @@ public class BuildPiece
                 PieceConfig cfg = pieceConfigs[piece] = new PieceConfig();
                 Piece piecePrefab = piece.Prefab.GetComponent<Piece>();
                 string pieceName = piecePrefab.m_name;
-                string englishName = new Regex("['[\"\\]]").Replace(english.Localize(pieceName), "").Trim();
+                string englishName = new Regex(@"[=\n\t\\""\'\[\]]*").Replace(english.Localize(pieceName), "").Trim();
                 string localizedName = Localization.instance.Localize(pieceName).Trim();
 
                 int order = 0;
@@ -402,7 +385,7 @@ public class BuildPiece
 
                 if (piece.Extension.ExtensionStations.Count > 0)
                 {
-                    StationExtension pieceExtensionComp = piece.Prefab.GetComponent<StationExtension>(); // WARNING CHANGE back
+                    StationExtension pieceExtensionComp = piece.Prefab.GetOrAddComponent<StationExtension>();
                     cfg.extensionTable = config(englishName, "Extends Station",
                         piece.Extension.ExtensionStations.First().Table,
                         new ConfigDescription($"Crafting station that {localizedName} extends.", null,
@@ -1242,7 +1225,6 @@ class RegisterClientRPCPatch
         AdminSyncing.RPC_AdminPieceAddRemove(0, package);
 }
 
-
 public static class PiecePrefabManager
 {
     static PiecePrefabManager()
@@ -1269,12 +1251,6 @@ public static class PiecePrefabManager
         harmony.Patch(AccessTools.DeclaredMethod(typeof(Hud), nameof(Hud.Awake)), postfix: new HarmonyMethod(AccessTools.DeclaredMethod(typeof(PiecePrefabManager), nameof(Hud_AwakeCreateTabs))));
         harmony.Patch(AccessTools.DeclaredMethod(typeof(Enum), nameof(Enum.GetValues)), postfix: new HarmonyMethod(AccessTools.DeclaredMethod(typeof(PiecePrefabManager), nameof(EnumGetValuesPatch))));
         harmony.Patch(AccessTools.DeclaredMethod(typeof(Enum), nameof(Enum.GetNames)), postfix: new HarmonyMethod(AccessTools.DeclaredMethod(typeof(PiecePrefabManager), nameof(EnumGetNamesPatch))));
-
-        PrefabContainer = new GameObject("Prefabs");
-        PrefabContainer.SetActive(false);
-
-
-
     }
 
     private struct BundleId
@@ -1284,8 +1260,6 @@ public static class PiecePrefabManager
     }
 
     private static readonly Dictionary<BundleId, AssetBundle> bundleCache = new();
-    private static GameObject PrefabContainer;
-    public static Piece[] allstartingPieces = null;
 
     public static AssetBundle RegisterAssetBundle(string assetBundleFileName, string folderName = "assets")
     {
@@ -1300,39 +1274,6 @@ public static class PiecePrefabManager
         }
 
         return assets;
-    }
-
-    private static void LoadPiecesCache()
-    {
-        if (allstartingPieces == null)
-            allstartingPieces = Resources.FindObjectsOfTypeAll<Piece>(); // need to cache across all PieceManager Versions but this only loads if mock
-    }
-    public static GameObject Searchforprefab(string prefabName)
-    {
-        GameObject found = null;
-        // hard to search for prefabs when they dont' exist yet...
-        foreach (var pie in piecePrefabs)
-        {
-            if (pie.name == prefabName)
-            {
-                return pie;
-            }
-        }
-        LoadPiecesCache();
-        foreach (var unityObject in allstartingPieces)
-        {
-            string name = unityObject.name;
-            if (name == prefabName)
-                return unityObject.gameObject;
-        }
-
-        int hash = prefabName.GetStableHashCode();
-        if (ZNetScene.instance && ZNetScene.instance.m_namedPrefabs.TryGetValue(hash, out var prefab))
-        {
-            return prefab;
-        }
-
-        return null;
     }
 
     public static IEnumerable<GameObject> FixRefs(AssetBundle assetBundle)
@@ -1356,20 +1297,11 @@ public static class PiecePrefabManager
     {
         GameObject prefab = assets.LoadAsset<GameObject>(prefabName);
 
-        foreach (GameObject gameObject in FixRefs(assets))
-        {
-            MaterialReplacer.RegisterGameObjectForShaderSwap(gameObject, MaterialReplacer.ShaderType.UseUnityShader);
-        }
+        //foreach (GameObject gameObject in FixRefs(assets))
+        //{
+        //    MaterialReplacer.RegisterGameObjectForShaderSwap(gameObject, MaterialReplacer.ShaderType.UseUnityShader);
+        //}
 
-        piecePrefabs.Add(prefab);
-
-        return prefab;
-    }
-
-    public static GameObject RegisterPrefab(GameObject existing, string NewObjectName) // mock
-    {
-        GameObject prefab = Object.Instantiate(existing, PrefabContainer.transform, false);
-        prefab.name = NewObjectName;
         piecePrefabs.Add(prefab);
 
         return prefab;
@@ -1489,8 +1421,8 @@ public static class PiecePrefabManager
         // Append tabs and their names to the GUI for every custom category not already added
         for (int i = Hud.instance.m_pieceCategoryTabs.Length; i < maxCategory; ++i)
         {
-            //GameObject tab = CreateCategoryTab();
-            //Hud.instance.m_pieceCategoryTabs = Hud.instance.m_pieceCategoryTabs.AddItem(tab).ToArray(); fix
+            GameObject tab = CreateCategoryTab();
+            Hud.instance.m_pieceCategoryTabs = Hud.instance.m_pieceCategoryTabs.AddItem(tab).ToArray();
         }
 
         if (Player.m_localPlayer && Player.m_localPlayer.m_buildPieces)
@@ -1500,7 +1432,6 @@ public static class PiecePrefabManager
         }
     }
 
-    /*
     private static GameObject CreateCategoryTab()
     {
         Transform categoryRoot = Hud.instance.m_pieceCategoryRoot.transform;
@@ -1509,21 +1440,21 @@ public static class PiecePrefabManager
         newTab.SetActive(false);
         newTab.GetOrAddComponent<UIInputHandler>().m_onLeftDown += Hud.instance.OnLeftClickCategory;
 
-        foreach (var text in newTab.GetComponentsInChildren<Text>())
+        foreach (var text in newTab.GetComponentsInChildren<TMP_Text>())
         {
             text.rectTransform.offsetMin = new Vector2(3, 1);
             text.rectTransform.offsetMax = new Vector2(-3, -1);
-            text.resizeTextForBestFit = true;
-            text.resizeTextMinSize = 12;
-            text.resizeTextMaxSize = 20;
+            text.enableAutoSizing = true;
+            text.fontSizeMin = 12;
+            text.fontSizeMax = 20;
             text.lineSpacing = 0.8f;
-            text.horizontalOverflow = HorizontalWrapMode.Wrap;
-            text.verticalOverflow = VerticalWrapMode.Truncate;
+            text.textWrappingMode = TextWrappingModes.Normal;
+            text.overflowMode = TextOverflowModes.Truncate;
         }
 
         return newTab;
     }
-    */
+
     private static int MaxCategory() => Enum.GetValues(typeof(Piece.PieceCategory)).Length - 1;
 
     private static List<CodeInstruction> TranspileMaxCategory(IEnumerable<CodeInstruction> instructions, int maxOffset)
@@ -1620,7 +1551,7 @@ public static class PiecePrefabManager
             }
         }
 
-        RectTransform background = (RectTransform)selectionWindow.Find("Bkg2")?.transform;
+        RectTransform background = (RectTransform)selectionWindow.Find("Bkg2")?.transform!;
 
         if (background)
         {
