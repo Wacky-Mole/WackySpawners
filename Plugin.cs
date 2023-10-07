@@ -296,6 +296,11 @@ namespace WackySpawners
                 piece2.m_description = areaConfig.name + " ";
                 piece2.name = currentcustomSpawner.name;
 
+                piece2.m_randomTarget = areaConfig.mobTarget;
+                piece2.m_primaryTarget = areaConfig.mobTarget;
+                piece2.m_targetNonPlayerBuilt = areaConfig.mobTarget;
+
+
 
 
                 foreach (string prefab in areaConfig.m_prefabName.Split(','))
@@ -313,12 +318,19 @@ namespace WackySpawners
 
                 if (!skipcreation)
                 {
-                    Jotunn.Managers.PieceManager.Instance.RegisterPieceInPieceTable(currentcustomSpawner, "Hammer", "Custom Spawners");
+                    /* tried
+                    BuildPiece PieceM1 = new(currentcustomSpawner);
+                    PieceM1.Tool.Add("Hammer");
+                    PieceM1.Category.Set("Custom Spawners");
+                    */
+
+                     //JVL changed something that prevents late game piece loading
+                    Jotunn.Managers.PieceManager.Instance.RegisterPieceInPieceTable(currentcustomSpawner, "_HammerPieceTable", "Custom Spawners");
 
                     if (!SynchronizationManager.Instance.PlayerIsAdmin)
                     {
                         table.m_pieces.Remove(currentcustomSpawner);
-                    }
+                    } 
                 }
             }
 

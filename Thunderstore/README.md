@@ -49,6 +49,7 @@ Live updates for new pieces, existing ones might not.
 - minLevel (int): Minimum level for spawned monsters.
 - maxLevel (int): Maximum level for spawned monsters.
 - HitPoints (int): Hit points for spawned piece. A 0 is infinite, 400 is the standard health of a portal.
+- mob_target (bool) Determines if a mobs target this piece or not. Sets all three, m_randomTarget, m_primaryTarget, m_targetNonPlayerBuilt
 
 
 ### Credits:

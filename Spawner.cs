@@ -67,7 +67,8 @@ namespace WackySpawners
             public int minLevel { get; set; }
             public int maxLevel { get; set; }
             public int HitPoints { get; set; }
-        }
+            public bool mobTarget { get; set; }
+    }
 
         public class WackySpawns
         {

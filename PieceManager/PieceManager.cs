@@ -245,6 +245,12 @@ public class BuildPiece
         registeredPieces.Add(this);
     }
 
+    public BuildPiece(GameObject prefabName)
+    {
+        Prefab = PiecePrefabManager.RegisterPrefab(prefabName);
+        registeredPieces.Add(this);
+    }
+
     private class ConfigurationManagerAttributes
     {
         [UsedImplicitly] public int? Order;
@@ -1302,6 +1308,13 @@ public static class PiecePrefabManager
         //    MaterialReplacer.RegisterGameObjectForShaderSwap(gameObject, MaterialReplacer.ShaderType.UseUnityShader);
         //}
 
+        piecePrefabs.Add(prefab);
+
+        return prefab;
+    }
+
+    public static GameObject RegisterPrefab(GameObject prefab)
+    {
         piecePrefabs.Add(prefab);
 
         return prefab;

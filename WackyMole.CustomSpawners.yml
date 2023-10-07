@@ -16,6 +16,7 @@ spawners:
   minLevel: 1
   maxLevel: 3
   HitPoints: 600
+  mobTarget: false
   
 - name: DeersAndBoars
   prefabToCopy: woodwall
@@ -34,6 +35,7 @@ spawners:
   minLevel: 1
   maxLevel: 3
   HitPoints: 400
+  mobTarget: false
   
 - name: Ghosts
   prefabToCopy: piece_banner01
@@ -52,6 +54,7 @@ spawners:
   minLevel: 1
   maxLevel: 3
   HitPoints: 0
+  mobTarget: false
   
 - name: Skeletons
   prefabToCopy: piece_banner01
@@ -88,3 +91,4 @@ spawners:
   minLevel: 1
   maxLevel: 3
   HitPoints: 3000
+  mobTarget: true
