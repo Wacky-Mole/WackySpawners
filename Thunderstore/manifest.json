@@ -4,7 +4,7 @@
   "website_url": "",
   "description": "Let you create indestructible or destructible, mob spawners with any piece appearance",
   "dependencies": [
-    "denikson-BepInExPack_Valheim-5.4.2205",
-	"ValheimModding-Jotunn-2.14.3"
+    "denikson-BepInExPack_Valheim-5.4.2200",
+	"ValheimModding-Jotunn-2.14.4"
   ]
 }

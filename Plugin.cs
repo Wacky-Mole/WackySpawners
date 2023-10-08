@@ -21,6 +21,7 @@ using Jotunn.Utils;
 using YamlDotNet.Serialization;
 using UnityEngine.XR;
 using System.Diagnostics;
+using Jotunn.Entities;
 
 namespace WackySpawners
 {
@@ -324,7 +325,7 @@ namespace WackySpawners
                     PieceM1.Category.Set("Custom Spawners");
                     */
 
-                     //JVL changed something that prevents late game piece loading
+                    //Jotunn.Managers.PieceManager.AddPiece(currentcustomSpawner);
                     Jotunn.Managers.PieceManager.Instance.RegisterPieceInPieceTable(currentcustomSpawner, "_HammerPieceTable", "Custom Spawners");
 
                     if (!SynchronizationManager.Instance.PlayerIsAdmin)
