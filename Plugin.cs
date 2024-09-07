@@ -22,6 +22,7 @@ using YamlDotNet.Serialization;
 using UnityEngine.XR;
 using System.Diagnostics;
 using Jotunn.Entities;
+using System.Runtime.CompilerServices;
 
 namespace WackySpawners
 {
@@ -29,7 +30,7 @@ namespace WackySpawners
     public class WackySpawner : BaseUnityPlugin
     {
         internal const string ModName = "WackySpawners";
-        internal const string ModVersion = "1.0.4";
+        internal const string ModVersion = "1.0.6";
         internal const string Author = "WackyMole";
         private const string ModGUID = Author + "." + ModName;
         private static string ConfigFileName = ModGUID + ".cfg";
@@ -131,14 +132,16 @@ namespace WackySpawners
             if(ConfigSync.IsSourceOfTruth) return;  // no need to get data if singleplayer
 
             Logger.LogInfo("Wacky.Spawners, Sync, reloading");
+
             if (hasAwake && spawnerInfo.Value != "")
             {
                 var copystring = spawnerInfo.Value;
                 ymlspawn = spawnClass.GetSpawnAreaConfigs(copystring);                
-                CreateandUpdateSpawnConfigs(ymlspawn.spawners);// and relad
+                CreateandUpdateSpawnConfigs(ymlspawn.spawners);// CustomSync
                 
             }else if (spawnerInfo.Value != "")
             {
+                // Only gets called if DungonDB Start hasn't been called yet
                 var copystring = spawnerInfo.Value;
                 ymlspawn = spawnClass.GetSpawnAreaConfigs(copystring);            
 
@@ -180,28 +183,43 @@ namespace WackySpawners
         }
 
 
-        [HarmonyPatch(typeof(Player), "OnSpawned")]
+        [HarmonyPatch(typeof(DungeonDB), "Start")]
         public static class OnSpawnedCheckSpawnerWac
         {
             private static void Postfix()
             {
                 if (hasAwake == true) return;
                 hasAwake = true;
-                CreateandUpdateSpawnConfigs(ymlspawn.spawners);      
+                //PieceManagerModTemplateLogger.LogWarning("Source of truth " + ConfigSync.IsSourceOfTruth);
+                CreateandUpdateSpawnConfigs(ymlspawn.spawners); // On Start
 
             }
         }
 
-
+        
         [HarmonyPatch(typeof(SpawnArea), "UpdateSpawn")]
         public class UpdateSpawnView
         {
             public static bool Prefix(SpawnArea __instance) => __instance.m_nview;
         }
+        
+        /*
+        [HarmonyPatch(typeof(SpawnArea), "IsSpawnPrefab")]  // This was causing regular vanilla spawners to go out of control for some reason in 218.21
+        public class FixErrorSometimes
+        {
+            public static bool Prefix(GameObject go)
+            {
+                if (go  == null ) return false;
+                if (go.GetComponent<SpawnArea>() == null ) return false;
 
+                return true;
+            }          
+        }
+        */ 
 
         public static void CreateandUpdateSpawnConfigs(List<Spawner> list)
         {
+           
             if (list == null || list.Count == 0)
             {
                 UnityEngine.Debug.LogWarning("list was empty for spawners");
@@ -282,6 +300,9 @@ namespace WackySpawners
                 SpawnArea area2 = currentcustomSpawner.GetComponent<SpawnArea>();
                 Piece piece2 = currentcustomSpawner.GetComponent<Piece>();
 
+
+                //area2.gameObject.AddComponent<MultiSpawn>();
+
                 area2.m_spawnTimer = areaConfig.m_spawnTimer;
                 area2.m_onGroundOnly = areaConfig.m_onGroundOnly;
                 area2.m_maxTotal = areaConfig.m_maxTotal;
@@ -336,7 +357,10 @@ namespace WackySpawners
             }
 
         }
+       public class MultiSpawn : MonoBehaviour
+        {
 
+        }
 
         private void OnDestroy()
         {
@@ -379,8 +403,9 @@ namespace WackySpawners
 
                 spawnerInfo.Value = serializer.Serialize(ymlspawn);
 
+                
                 if (ConfigSync.IsSourceOfTruth)
-                    CreateandUpdateSpawnConfigs(ymlspawn.spawners); // update singleplayer or host
+                    CreateandUpdateSpawnConfigs(ymlspawn.spawners); // On update singleplayer or host
             }
 
         }

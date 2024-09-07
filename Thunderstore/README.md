@@ -35,17 +35,20 @@ Live updates for new pieces, existing ones might not.
 - name (string): Name of the monster spawner. - (Can't change without reboot)
 - prefabToCopy (string): Prefab to copy when creating monsters. (Can't change without reboot)
 - m_spawnTimer (int): Just appears to be the internal counter: doesn't really do anything.
+
+	m_spawnTimer += 2f; if (m_spawnTimer > m_spawnIntervalSec) Vanilla Spawn Timer updates every 2 seconds
+
 - m_onGroundOnly (bool): Set to true to spawn monsters only on the ground.
 - m_maxTotal (int): Maximum total spawned monsters.
 - m_maxNear (int): Maximum monsters in the NEAR proximity of the spawner.
-- m_farRadius (int): What determintes a FAR Radius.
 - m_spawnRadius (int): Radius within which monsters can spawn.
-- m_setPatrolSpawnPoint (bool): Set to true to enable patrol spawn points for monsters. 
-- m_triggerDistance (int): Distance at which players trigger monster spawns.
+- m_setPatrolSpawnPoint (bool): Set to true to enable patrol spawn points for monsters. (Between Near and Far?) 
+- m_triggerDistance (int): Distance at which players trigger monster spawns. Players have to inside this line for spawns to be renewed
 - m_spawnIntervalSec (int): Time interval between monster spawns (in seconds).
 - m_levelupChance (int): Chance for monsters to level up when spawned.
 - m_prefabName (string): Name of the spawned monster prefab.
 - m_nearRadius (int): What determines a NEAR Radius
+- m_farRadius (int): What determintes a FAR Radius.
 - minLevel (int): Minimum level for spawned monsters.
 - maxLevel (int): Maximum level for spawned monsters.
 - HitPoints (int): Hit points for spawned piece. A 0 is infinite, 400 is the standard health of a portal.
