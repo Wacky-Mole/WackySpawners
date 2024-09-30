@@ -202,7 +202,7 @@ namespace WackySpawners
         {
             public static bool Prefix(SpawnArea __instance) => __instance.m_nview;
         }
-        
+
         /*
         [HarmonyPatch(typeof(SpawnArea), "IsSpawnPrefab")]  // This was causing regular vanilla spawners to go out of control for some reason in 218.21
         public class FixErrorSometimes
@@ -215,7 +215,18 @@ namespace WackySpawners
                 return true;
             }          
         }
-        */ 
+        */
+
+        [HarmonyPatch(typeof(SpawnArea), "SpawnOne")]
+        public class UpdateSpawnAmount
+        {
+            public static bool Prefix(SpawnArea __instance)
+            {
+
+
+                return true;
+            }
+        }
 
         public static void CreateandUpdateSpawnConfigs(List<Spawner> list)
         {
@@ -299,6 +310,8 @@ namespace WackySpawners
 
                 SpawnArea area2 = currentcustomSpawner.GetComponent<SpawnArea>();
                 Piece piece2 = currentcustomSpawner.GetComponent<Piece>();
+               // CircleProjector circle2 =  currentcustomSpawner.AddComponent<CircleProjector>();
+                //circle2.m_prefab =
 
 
                 //area2.gameObject.AddComponent<MultiSpawn>();
@@ -317,6 +330,7 @@ namespace WackySpawners
                 area2.m_prefabs = new List<SpawnArea.SpawnData>();
                 piece2.m_description = areaConfig.name + " ";
                 piece2.name = currentcustomSpawner.name;
+               
 
                 piece2.m_randomTarget = areaConfig.mobTarget;
                 piece2.m_primaryTarget = areaConfig.mobTarget;
