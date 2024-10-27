@@ -11,7 +11,7 @@ using System.IO;
 using System.Reflection;
 using static CharacterAnimEvent;
 using YamlDotNet.Core;
-using PieceManager;
+
 using System.Collections.Generic;
 using UnityEngine;
 using System.Linq;
@@ -30,7 +30,7 @@ namespace WackySpawners
     public class WackySpawner : BaseUnityPlugin
     {
         internal const string ModName = "WackySpawners";
-        internal const string ModVersion = "1.0.6";
+        internal const string ModVersion = "1.0.8";
         internal const string Author = "WackyMole";
         private const string ModGUID = Author + "." + ModName;
         private static string ConfigFileName = ModGUID + ".cfg";
@@ -111,11 +111,12 @@ namespace WackySpawners
                 "If on, the configuration is locked and can be changed by server admins only.");
             _ = ConfigSync.AddLockingConfigEntry(_serverConfigLocked);
 
-
             // Globally turn off configuration options for your pieces, omit if you don't want to do this.
             BuildPiece.ConfigurationEnabled = false;
 
             spawnerInfo.ValueChanged += CustomSpawnerSync;
+
+            SynchronizationManager.OnAdminStatusChanged += CustomSpawnerSync;
 
             Assembly assembly = Assembly.GetExecutingAssembly();
             _harmony.PatchAll(assembly);
@@ -174,6 +175,8 @@ namespace WackySpawners
                 ZNet zNet = ZNet.instance;
                 if (zNet.IsServer())
                 {
+                    
+                    CreateandUpdateSpawnConfigs(ymlspawn.spawners); // On Start
                     var serializer = new SerializerBuilder()
                        // .WithNewLine("\n")
                          .Build();
@@ -190,8 +193,6 @@ namespace WackySpawners
             {
                 if (hasAwake == true) return;
                 hasAwake = true;
-                //PieceManagerModTemplateLogger.LogWarning("Source of truth " + ConfigSync.IsSourceOfTruth);
-                CreateandUpdateSpawnConfigs(ymlspawn.spawners); // On Start
 
             }
         }
@@ -222,8 +223,6 @@ namespace WackySpawners
         {
             public static bool Prefix(SpawnArea __instance)
             {
-
-
                 return true;
             }
         }
@@ -252,7 +251,8 @@ namespace WackySpawners
                 bool skipcreation = false;
                 GameObject hold = null;
 
-                if (table.m_pieces.Exists(x => x.name == newName))
+                if (PrefabManager.Instance.GetPrefab(newName) != null)
+               // if (table.m_pieces.Exists(x => x.name == newName))
                 {
                     skipcreation = true ;
                 }
@@ -352,6 +352,9 @@ namespace WackySpawners
                     area2.m_prefabs.Add(newArea);
                 }
 
+                if (ZNet.instance.IsServer() && ZNet.instance.IsDedicated())
+                    continue;
+
                 if (!skipcreation)
                 {
                     /* tried
@@ -359,15 +362,37 @@ namespace WackySpawners
                     PieceM1.Tool.Add("Hammer");
                     PieceM1.Category.Set("Custom Spawners");
                     */
-
                     //Jotunn.Managers.PieceManager.AddPiece(currentcustomSpawner);
-                    Jotunn.Managers.PieceManager.Instance.RegisterPieceInPieceTable(currentcustomSpawner, "_HammerPieceTable", "Custom Spawners");
+                    //Jotunn.Managers.PieceManager.Instance.RegisterPieceInPieceTable(currentcustomSpawner, "_HammerPieceTable", "Custom Spawners");
 
-                    if (!SynchronizationManager.Instance.PlayerIsAdmin)
+                    try
                     {
-                        table.m_pieces.Remove(currentcustomSpawner);
-                    } 
+                        Jotunn.Managers.PieceManager.Instance.RegisterPieceInPieceTable(currentcustomSpawner, "_HammerPieceTable", "Custom Spawners");
+                    }
+                    catch (Exception e) { UnityEngine.Debug.LogWarning("Failed to find piecehammer"); continue; }
                 }
+
+                if (!SynchronizationManager.Instance.PlayerIsAdmin)
+                {
+                   // UnityEngine.Debug.LogWarning("Player is not admin Remove Piece" + currentcustomSpawner.name);
+                    table.m_pieces.Remove(currentcustomSpawner);
+                    // table.m_pieces.find
+                    //table.m_pieces.fin(currentcustomSpawner).SetActive(false);
+                }
+                else
+                {
+                   // UnityEngine.Debug.LogWarning("Player is admin, Leave piece " + currentcustomSpawner.name);
+                    if (table.m_pieces.Exists(x => x.name == currentcustomSpawner.name))
+                    {
+                        // good
+                    }else
+                    {
+                        table.m_pieces.Add(currentcustomSpawner);
+                    }
+                }
+
+
+
             }
 
         }
