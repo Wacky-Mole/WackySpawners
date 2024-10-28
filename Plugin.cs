@@ -4,14 +4,12 @@ using BepInEx.Logging;
 using HarmonyLib;
 using JetBrains.Annotations;
 using LocalizationManager;
-using PieceManager;
 using ServerSync;
 using System;
 using System.IO;
 using System.Reflection;
 using static CharacterAnimEvent;
 using YamlDotNet.Core;
-
 using System.Collections.Generic;
 using UnityEngine;
 using System.Linq;
@@ -30,7 +28,7 @@ namespace WackySpawners
     public class WackySpawner : BaseUnityPlugin
     {
         internal const string ModName = "WackySpawners";
-        internal const string ModVersion = "1.0.7";
+        internal const string ModVersion = "1.0.8";
         internal const string Author = "WackyMole";
         private const string ModGUID = Author + "." + ModName;
         private static string ConfigFileName = ModGUID + ".cfg";
@@ -112,7 +110,6 @@ namespace WackySpawners
             _ = ConfigSync.AddLockingConfigEntry(_serverConfigLocked);
 
             // Globally turn off configuration options for your pieces, omit if you don't want to do this.
-            BuildPiece.ConfigurationEnabled = false;
 
             spawnerInfo.ValueChanged += CustomSpawnerSync;
 
