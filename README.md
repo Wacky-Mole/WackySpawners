@@ -25,6 +25,7 @@ All created spawners will appear in the hammer; only admins can build them.
 - Will probably drop JVL in the future.
 - Default file will be created if none exist, with examples.
 - Custom Spawners drop nothing when they are destroyed
+- MultiSpawn at once!
 
 ### WackyMole.CustomSpawners.yml
 
@@ -34,7 +35,7 @@ Live updates for new pieces, existing ones might not.
 
 - name (string): Name of the monster spawner. - (Can't change without reboot)
 - prefabToCopy (string): Prefab to copy when creating monsters. (Can't change without reboot)
-- m_spawnTimer (int): Just appears to be the internal counter: doesn't really do anything.
+- m_spawnTimer (int): The internal counter:
 
 	m_spawnTimer += 2f; if (m_spawnTimer > m_spawnIntervalSec) Vanilla Spawn Timer updates every 2 seconds
 
@@ -46,14 +47,14 @@ Live updates for new pieces, existing ones might not.
 - m_triggerDistance (int): Distance at which players trigger monster spawns. Players have to inside this line for spawns to be renewed
 - m_spawnIntervalSec (int): Time interval between monster spawns (in seconds).
 - m_levelupChance (int): Chance for monsters to level up when spawned.
-- m_prefabName (string): Name of the spawned monster prefab.
+- m_prefabName (string): Name of the spawned monster prefab. Can be multiple. It is random on which it will spawn, BUT it Uses m_weight of mob to increase chances of spawning. Higher weight more likely to spawn
 - m_nearRadius (int): What determines a NEAR Radius
 - m_farRadius (int): What determintes a FAR Radius.
 - minLevel (int): Minimum level for spawned monsters.
 - maxLevel (int): Maximum level for spawned monsters.
 - HitPoints (int): Hit points for spawned piece. A 0 is infinite, 400 is the standard health of a portal.
 - mob_target (bool) Determines if a mobs target this piece or not. Sets all three, m_randomTarget, m_primaryTarget, m_targetNonPlayerBuilt
-- multiSpawn (int) Default is 0.  Allows the spawn logic to spawn multiple mobs at the same time. This allows you to set your timers really high without worrying about an empty area.
+- multiSpawn (int) Default is 0.  Allows the spawn logic to spawn multiple mobs at the same time. This allows you to set your timers really high without worrying about an empty area and without huge spawn radii.  Dont use large radii. </br> The plural of radius is radii. 
 
 ### Credits:
 Detalhes and all his mods https://valheim.thunderstore.io/package/Detalhes/

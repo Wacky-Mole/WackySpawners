@@ -21,7 +21,7 @@ using UnityEngine.XR;
 using System.Diagnostics;
 using Jotunn.Entities;
 using System.Runtime.CompilerServices;
-using static WackySpawners.WackySpawner;
+
 
 namespace WackySpawners
 {
@@ -165,12 +165,25 @@ namespace WackySpawners
             {
                 hasAwake = false;
             }
-        }
-
-        [HarmonyPatch(typeof(ZNet), "Awake")]
-        public static class ServerloadWacSpawn
+        }        
+        /*
+        [HarmonyPatch(typeof(Player), "OnSpawned")]
+        public static class PlayerLateLateReload
         {
             private static void Postfix()
+            {
+                if (ZNet.instance.IsServer())
+                {
+                    CreateandUpdateSpawnConfigs(ymlspawn.spawners); // dumb dumb
+
+                }
+            }
+        }*/
+
+        [HarmonyPatch(typeof(ZNet), "Start")]
+        public static class ServerloadWacSpawn
+        {
+            private static void Prefix()
             {
                 ZNet zNet = ZNet.instance;
                 if (zNet.IsServer())
@@ -218,7 +231,7 @@ namespace WackySpawners
             }          
         }
         */
-        /*
+        
         [HarmonyPatch(typeof(SpawnArea), "SpawnOne")]
         public class UpdateSpawnAmount
         {
@@ -226,13 +239,15 @@ namespace WackySpawners
             {
                 if (__result)
                 {
-                    Logg.LogWarning("Name " + __instance.name);
-                    if (Multispawn.ContainsKey(__instance.name+"(Clone)"))
+                   // Logg.LogWarning("Name " + __instance.name);
+                    if (Multispawn.ContainsKey(__instance.name))
                     {
-
-                        int multi = Multispawn[__instance.name + "(Clone)"];
+                        
+                        int multi = Multispawn[__instance.name];
                         if (multi == 1) return;
                         int minus = multi - 1;
+
+                        Logg.LogInfo("MultiSpawn "+ minus + " of" + __instance.name );
 
                         __instance.GetInstances(out var near, out var total);
                         if (near+minus >= __instance.m_maxNear || total+minus >= __instance.m_maxTotal)
@@ -291,7 +306,7 @@ namespace WackySpawners
                     }
                 }
             }
-        }*/
+        }
 
         public static void CreateandUpdateSpawnConfigs(List<Spawner> list)
         {
@@ -382,10 +397,10 @@ namespace WackySpawners
                 area2.name = newName;
                 if (areaConfig.multiSpawn != 0)
                 {
-                    if (Multispawn.ContainsKey(area2.name))
-                        Multispawn[area2.name] = areaConfig.multiSpawn;
+                    if (Multispawn.ContainsKey(area2.name + "(Clone)"))
+                        Multispawn[area2.name + "(Clone)"] = areaConfig.multiSpawn;
                     else
-                        Multispawn.Add(area2.name, areaConfig.multiSpawn);
+                        Multispawn.Add(area2.name + "(Clone)", areaConfig.multiSpawn);
                 }
 
                 area2.m_spawnTimer = areaConfig.m_spawnTimer;
@@ -437,7 +452,7 @@ namespace WackySpawners
                 {
                     Jotunn.Managers.PieceManager.Instance.RegisterPieceInPieceTable(currentcustomSpawner, "_HammerPieceTable", "Custom Spawners"); // I started having problems with this all of a sudden
                 }
-                catch (Exception e) { Logg.LogWarning("Failed to find piecehammer"); continue; }
+                catch (Exception e) { Logg.LogWarning("Failed to find piecehammer, will try again"); continue; }
 
 
                 if (!SynchronizationManager.Instance.PlayerIsAdmin)
@@ -449,7 +464,8 @@ namespace WackySpawners
                 }
                 else
                 {
-                   // UnityEngine.Debug.LogWarning("Player is admin, Leave piece " + currentcustomSpawner.name);
+
+                    // UnityEngine.Debug.LogWarning("Player is admin, Leave piece " + currentcustomSpawner.name);
                     if (table.m_pieces.Exists(x => x.name == currentcustomSpawner.name))
                     {
                         // good
@@ -458,11 +474,7 @@ namespace WackySpawners
                         table.m_pieces.Add(currentcustomSpawner);
                     }
                 }
-
-
-
             }
-
         }
        public class MultiSpawn : MonoBehaviour
         {
