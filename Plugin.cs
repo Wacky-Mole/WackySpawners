@@ -21,6 +21,7 @@ using UnityEngine.XR;
 using System.Diagnostics;
 using Jotunn.Entities;
 using System.Runtime.CompilerServices;
+using static WackySpawners.WackySpawner;
 
 namespace WackySpawners
 {
@@ -39,8 +40,6 @@ namespace WackySpawners
         internal static string assetPath;
         internal static string assetPathWacky;
 
-
-
         public static ConfigEntry<bool> IsSinglePlayer;
         public static string OldFile = BepInEx.Paths.ConfigPath + @"/Detalhes.CustomSpawners.json"; // old file to look for
         public static string WackyFile = BepInEx.Paths.ConfigPath + @"/WackyMole.CustomSpawners.yml";
@@ -51,13 +50,15 @@ namespace WackySpawners
         internal static WackySpawns ymlspawn = null;
 
 
-        public static readonly ManualLogSource PieceManagerModTemplateLogger =
+        public static readonly ManualLogSource Logg =
             BepInEx.Logging.Logger.CreateLogSource(ModName);
 
         private static readonly ConfigSync ConfigSync = new(ModGUID)
         { DisplayName = ModName, CurrentVersion = ModVersion, MinimumRequiredVersion = ModVersion };
 
         internal static readonly CustomSyncedValue<string> spawnerInfo = new(ConfigSync, "wackySpawner", ""); // doesn't show up in config
+
+        public static Dictionary<string,int> Multispawn = new();
 
         public enum Toggle
         {
@@ -76,12 +77,12 @@ namespace WackySpawners
 
             } else if (File.Exists(OldFile) )
             {
-                Logger.LogWarning("Converting Detalhes.CustomSpawners.json in WackyMole.CustomSpawners.yml, Will NOT Delete");
+                Logg.LogWarning("Converting Detalhes.CustomSpawners.json in WackyMole.CustomSpawners.yml, Will NOT Delete");
                 ymlspawn = spawnClass.ConvertOldtoNew();
             }
             else
             {
-                Logger.LogWarning("Createing Example File WackyMole.CustomSpawners.yml, please edit to your liking");
+                Logg.LogWarning("Creating Example File WackyMole.CustomSpawners.yml, please edit to your liking");
 
                 var paul = ReadEmbeddedFileBytes("WackyMole.CustomSpawners.yml");
                 File.WriteAllBytes(assetPathWacky, paul);
@@ -115,6 +116,8 @@ namespace WackySpawners
 
             SynchronizationManager.OnAdminStatusChanged += CustomSpawnerSync;
 
+           // PrefabManager.OnVanillaPrefabsAvailable += LoadPiecesNow;
+
             Assembly assembly = Assembly.GetExecutingAssembly();
             _harmony.PatchAll(assembly);
             SetupWatcher();
@@ -129,7 +132,7 @@ namespace WackySpawners
 
             if(ConfigSync.IsSourceOfTruth) return;  // no need to get data if singleplayer
 
-            Logger.LogInfo("Wacky.Spawners, Sync, reloading");
+            Logg.LogInfo("Wacky.Spawners, Sync, reloading");
 
             if (hasAwake && spawnerInfo.Value != "")
             {
@@ -165,14 +168,13 @@ namespace WackySpawners
         }
 
         [HarmonyPatch(typeof(ZNet), "Awake")]
-        public static class ServerloadWac
+        public static class ServerloadWacSpawn
         {
             private static void Postfix()
             {
                 ZNet zNet = ZNet.instance;
                 if (zNet.IsServer())
                 {
-                    
                     CreateandUpdateSpawnConfigs(ymlspawn.spawners); // On Start
                     var serializer = new SerializerBuilder()
                        // .WithNewLine("\n")
@@ -180,7 +182,9 @@ namespace WackySpawners
                     spawnerInfo.Value = serializer.Serialize(ymlspawn);
                 }
             }
-        }
+        }        
+        
+
 
 
         [HarmonyPatch(typeof(DungeonDB), "Start")]
@@ -214,29 +218,94 @@ namespace WackySpawners
             }          
         }
         */
-
+        /*
         [HarmonyPatch(typeof(SpawnArea), "SpawnOne")]
         public class UpdateSpawnAmount
         {
-            public static bool Prefix(SpawnArea __instance)
+            public static void Postfix(SpawnArea __instance, bool __result)
             {
-                return true;
+                if (__result)
+                {
+                    Logg.LogWarning("Name " + __instance.name);
+                    if (Multispawn.ContainsKey(__instance.name+"(Clone)"))
+                    {
+
+                        int multi = Multispawn[__instance.name + "(Clone)"];
+                        if (multi == 1) return;
+                        int minus = multi - 1;
+
+                        __instance.GetInstances(out var near, out var total);
+                        if (near+minus >= __instance.m_maxNear || total+minus >= __instance.m_maxTotal)
+                        {
+                            return;
+                        }
+
+
+                        for (int j = 0; j < minus; j++)
+                        {
+
+                            SpawnArea.SpawnData spawnData = __instance.SelectWeightedPrefab();
+                            if (spawnData == null)
+                            {
+                                return;
+                            }
+
+                            if (!__instance.FindSpawnPoint(spawnData.m_prefab, out var point))
+                            {
+                                return;
+                            }
+
+                            GameObject gameObject = UnityEngine.Object.Instantiate(spawnData.m_prefab, point, Quaternion.Euler(0f, UnityEngine.Random.Range(0, 360), 0f));
+                            if (__instance.m_setPatrolSpawnPoint)
+                            {
+                                BaseAI component = gameObject.GetComponent<BaseAI>();
+                                if (component != null)
+                                {
+                                    component.SetPatrolPoint();
+                                }
+                            }
+
+                            Character component2 = gameObject.GetComponent<Character>();
+                            if (spawnData.m_maxLevel > 1)
+                            {
+                                int i;
+                                for (i = spawnData.m_minLevel; i < spawnData.m_maxLevel; i++)
+                                {
+                                    if (!(UnityEngine.Random.Range(0f, 100f) <= __instance.GetLevelUpChance()))
+                                    {
+                                        break;
+                                    }
+                                }
+
+                                if (i > 1)
+                                {
+                                    component2.SetLevel(i);
+                                }
+                            }
+
+                            Vector3 centerPoint = component2.GetCenterPoint();
+                            __instance.m_spawnEffects.Create(centerPoint, Quaternion.identity);
+
+                        }
+                        
+                    }
+                }
             }
-        }
+        }*/
 
         public static void CreateandUpdateSpawnConfigs(List<Spawner> list)
         {
            
             if (list == null || list.Count == 0)
             {
-                UnityEngine.Debug.LogWarning("list was empty for spawners");
+                Logg.LogWarning("list was empty for spawners");
                 return;
             }
 
             var hammer = ObjectDB.instance.m_items.FirstOrDefault(x => x.name == "Hammer");
             if (!hammer)
             {
-                UnityEngine.Debug.LogError("Custom Spawners - Hammer could not be loaded"); return;
+                Logg.LogError("Custom Spawners - Hammer could not be loaded"); return;
             }
 
 
@@ -258,7 +327,7 @@ namespace WackySpawners
                     GameObject customSpawner = PrefabManager.Instance.CreateClonedPrefab(newName, areaConfig.prefabToCopy);
                     if (customSpawner == null)
                     {
-                        UnityEngine.Debug.LogError("original prefab not found for " + areaConfig.prefabToCopy);
+                        Logg.LogError("original prefab not found for " + areaConfig.prefabToCopy);
                         continue;
                     }
 
@@ -307,11 +376,17 @@ namespace WackySpawners
 
                 SpawnArea area2 = currentcustomSpawner.GetComponent<SpawnArea>();
                 Piece piece2 = currentcustomSpawner.GetComponent<Piece>();
-               // CircleProjector circle2 =  currentcustomSpawner.AddComponent<CircleProjector>();
+                // CircleProjector circle2 =  currentcustomSpawner.AddComponent<CircleProjector>();
                 //circle2.m_prefab =
 
-
-                //area2.gameObject.AddComponent<MultiSpawn>();
+                area2.name = newName;
+                if (areaConfig.multiSpawn != 0)
+                {
+                    if (Multispawn.ContainsKey(area2.name))
+                        Multispawn[area2.name] = areaConfig.multiSpawn;
+                    else
+                        Multispawn.Add(area2.name, areaConfig.multiSpawn);
+                }
 
                 area2.m_spawnTimer = areaConfig.m_spawnTimer;
                 area2.m_onGroundOnly = areaConfig.m_onGroundOnly;
@@ -354,20 +429,16 @@ namespace WackySpawners
 
                 if (!skipcreation)
                 {
-                    /* tried
-                    BuildPiece PieceM1 = new(currentcustomSpawner);
-                    PieceM1.Tool.Add("Hammer");
-                    PieceM1.Category.Set("Custom Spawners");
-                    */
-                    //Jotunn.Managers.PieceManager.AddPiece(currentcustomSpawner);
                     //Jotunn.Managers.PieceManager.Instance.RegisterPieceInPieceTable(currentcustomSpawner, "_HammerPieceTable", "Custom Spawners");
-
-                    try
-                    {
-                        Jotunn.Managers.PieceManager.Instance.RegisterPieceInPieceTable(currentcustomSpawner, "_HammerPieceTable", "Custom Spawners");
-                    }
-                    catch (Exception e) { UnityEngine.Debug.LogWarning("Failed to find piecehammer"); continue; }
+                    //PieceManager.Instance.RegisterPieceInPieceTable(currentcustomSpawner, "_HammerPieceTable", "Custom Spawners");
                 }
+
+                try
+                {
+                    Jotunn.Managers.PieceManager.Instance.RegisterPieceInPieceTable(currentcustomSpawner, "_HammerPieceTable", "Custom Spawners"); // I started having problems with this all of a sudden
+                }
+                catch (Exception e) { Logg.LogWarning("Failed to find piecehammer"); continue; }
+
 
                 if (!SynchronizationManager.Instance.PlayerIsAdmin)
                 {
@@ -451,13 +522,13 @@ namespace WackySpawners
             if (!File.Exists(ConfigFileFullPath)) return;
             try
             {
-                PieceManagerModTemplateLogger.LogDebug("ReadConfigValues called");
+                Logg.LogDebug("ReadConfigValues called");
                 Config.Reload();
             }
             catch
             {
-                PieceManagerModTemplateLogger.LogError($"There was an issue loading your {ConfigFileName}");
-                PieceManagerModTemplateLogger.LogError("Please check your config entries for spelling and format!");
+                Logg.LogError($"There was an issue loading your {ConfigFileName}");
+                Logg.LogError("Please check your config entries for spelling and format!");
             }
         }
 

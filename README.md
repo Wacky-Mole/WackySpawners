@@ -53,7 +53,7 @@ Live updates for new pieces, existing ones might not.
 - maxLevel (int): Maximum level for spawned monsters.
 - HitPoints (int): Hit points for spawned piece. A 0 is infinite, 400 is the standard health of a portal.
 - mob_target (bool) Determines if a mobs target this piece or not. Sets all three, m_randomTarget, m_primaryTarget, m_targetNonPlayerBuilt
-
+- multiSpawn (int) Default is 0.  Allows the spawn logic to spawn multiple mobs at the same time. This allows you to set your timers really high without worrying about an empty area.
 
 ### Credits:
 Detalhes and all his mods https://valheim.thunderstore.io/package/Detalhes/
