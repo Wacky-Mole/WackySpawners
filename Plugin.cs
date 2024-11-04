@@ -29,7 +29,7 @@ namespace WackySpawners
     public class WackySpawner : BaseUnityPlugin
     {
         internal const string ModName = "WackySpawners";
-        internal const string ModVersion = "1.0.8";
+        internal const string ModVersion = "1.0.9";
         internal const string Author = "WackyMole";
         private const string ModGUID = Author + "." + ModName;
         private static string ConfigFileName = ModGUID + ".cfg";
@@ -39,6 +39,7 @@ namespace WackySpawners
         internal static YMLSpawnLoader spawnClass;
         internal static string assetPath;
         internal static string assetPathWacky;
+        public static bool hasAwake = false;
 
         public static ConfigEntry<bool> IsSinglePlayer;
         public static string OldFile = BepInEx.Paths.ConfigPath + @"/Detalhes.CustomSpawners.json"; // old file to look for
@@ -88,22 +89,11 @@ namespace WackySpawners
                 File.WriteAllBytes(assetPathWacky, paul);
                 var pete = File.ReadAllText(assetPathWacky);
 
-                //Logger.LogWarning(paul);
-               // Logger.LogWarning(bitString);
                 var deslizer = new DeserializerBuilder().Build();
                 WackySpawns pieces = deslizer.Deserialize<WackySpawns>(pete);
-                /*
-                var serializer = new SerializerBuilder()
-                    .WithNewLine("\n")
-                    .Build();
-
-                File.WriteAllText(assetPathWacky, serializer.Serialize(pieces)); */
-                //currentpieces = pieces.spawners;
                 ymlspawn = pieces;
 
             }
-
-            //BuildPiece wacky = new BuildPiece("portal_wood", "portal_wood2", true);
             
            
             _serverConfigLocked = config("1 - General", "Lock Configuration", Toggle.On,
@@ -142,10 +132,14 @@ namespace WackySpawners
                 
             }else if (spawnerInfo.Value != "")
             {
+                Logg.LogInfo("Has not passed Dung Start");
                 // Only gets called if DungonDB Start hasn't been called yet
                 var copystring = spawnerInfo.Value;
-                ymlspawn = spawnClass.GetSpawnAreaConfigs(copystring);            
-
+                ymlspawn = spawnClass.GetSpawnAreaConfigs(copystring);
+              //  CreateandUpdateSpawnConfigs(ymlspawn.spawners);// CustomSync
+            } else if (spawnerInfo.Value == "")
+            {
+                Logg.LogWarning("Spawners, Sync was empty, check server yml");
             }
         }
 
@@ -157,7 +151,7 @@ namespace WackySpawners
         }
 
 
-        public static bool hasAwake = false;
+        
         [HarmonyPatch(typeof(Game), "Logout")]
         public static class LogoutCheckWAc
         {
@@ -185,8 +179,7 @@ namespace WackySpawners
         {
             private static void Prefix()
             {
-                ZNet zNet = ZNet.instance;
-                if (zNet.IsServer())
+                if (ZNet.instance.IsServer())
                 {
                     CreateandUpdateSpawnConfigs(ymlspawn.spawners); // On Start
                     var serializer = new SerializerBuilder()
@@ -204,10 +197,8 @@ namespace WackySpawners
         public static class OnSpawnedCheckSpawnerWac
         {
             private static void Postfix()
-            {
-                if (hasAwake == true) return;
+            {         
                 hasAwake = true;
-
             }
         }
 

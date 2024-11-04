@@ -22,7 +22,6 @@ All created spawners will appear in the hammer; only admins can build them.
 - Drop-in replacement converts JSON to YAML.
 - Replaced RPC calls with ServerSync.
 - Added Filewatcher for YAML, live updates.
-- Will probably drop JVL in the future.
 - Default file will be created if none exist, with examples.
 - Custom Spawners drop nothing when they are destroyed
 - MultiSpawn at once!

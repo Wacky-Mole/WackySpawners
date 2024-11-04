@@ -54,7 +54,29 @@ Live updates for new pieces, existing ones might not.
 - maxLevel (int): Maximum level for spawned monsters.
 - HitPoints (int): Hit points for spawned piece. A 0 is infinite, 400 is the standard health of a portal.
 - mob_target (bool) Determines if a mobs target this piece or not. Sets all three, m_randomTarget, m_primaryTarget, m_targetNonPlayerBuilt
-- multiSpawn (int) Default is 0.  Allows the spawn logic to spawn multiple mobs at the same time. This allows you to set your timers really high without worrying about an empty area and without huge spawn radii.  Dont use large radii. </br> The plural of radius is radii. 
+- multiSpawn (int) Default is 0.  Allows the spawn logic to spawn multiple mobs at the same time. This allows you to set your timers really high without worrying about an empty area and without a huge spawn radius.  Dont use large radii.
+
+### Example
+
+- name: GhostsMultiSpawn
+  prefabToCopy: piece_banner01
+  m_spawnTimer: 11
+  m_onGroundOnly: false
+  m_maxTotal: 15
+  m_maxNear: 5
+  m_farRadius: 1
+  m_spawnRadius: 30
+  m_setPatrolSpawnPoint: false
+  m_triggerDistance: 30
+  m_spawnIntervalSec: 30
+  m_levelupChance: 10
+  m_prefabName: Ghost
+  m_nearRadius: 0
+  minLevel: 1
+  maxLevel: 3
+  HitPoints: 0
+  mobTarget: false
+  multiSpawn: 5
 
 ### Credits:
 Detalhes and all his mods https://valheim.thunderstore.io/package/Detalhes/
