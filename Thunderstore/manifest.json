@@ -1,6 +1,6 @@
 {
   "name": "WackySpawners",
-  "version_number": "1.0.9",
+  "version_number": "1.1.0",
   "website_url": "",
   "description": "Let you create indestructible or destructible, mob spawners with any piece appearance",
   "dependencies": [
