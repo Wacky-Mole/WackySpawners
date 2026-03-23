@@ -3,7 +3,7 @@
 
 This is a replacement for Custom Spawners: [https://valheim.thunderstore.io/package/Detalhes/CustomSpawners/](https://valheim.thunderstore.io/package/Detalhes/CustomSpawners/)
 
-While Custom Spawners still works, it lacks documentation and examples.
+While Custom Spawners still works, it lacks documentation, features and examples.
 
 
 #### Dynamic Monster Spawning: The mod enables the creation of monster spawners that generate monsters based on configurable parameters.
@@ -22,6 +22,8 @@ All created spawners will appear in the hammer; only admins can build them.
 - Drop-in replacement converts JSON to YAML.
 - Replaced RPC calls with ServerSync.
 - Added Filewatcher for YAML, live updates.
+- Added support for multiple YAML files starting with "wackymole.customspawners." This allows you to organize your spawners into different files, such as by biome or theme.
+For example wackymole.customspawners.marshyman69.yml
 - Default file will be created if none exist, with examples.
 - Custom Spawners drop nothing when they are destroyed
 - MultiSpawn at once!

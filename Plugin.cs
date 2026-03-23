@@ -287,7 +287,10 @@ namespace WackySpawners
 
                                 if (i > 1)
                                 {
-                                    component2.SetLevel(i);
+                                    if (!TrySetSLSLevel(component2, i))
+                                    {
+                                        component2.SetLevel(i);
+                                    }
                                 }
                             }
 
@@ -298,6 +301,45 @@ namespace WackySpawners
                         
                     }
                 }
+            }
+
+            private static bool _slsInitialized = false;
+            private static MethodInfo _slsSetLevelMethod = null;
+
+            private static bool TrySetSLSLevel(Character character, int level)
+            {
+                if (!_slsInitialized)
+                {
+                    try
+                    {
+                        Type slsApiType = Type.GetType("StarLevelSystem.API, StarLevelSystem");
+                        if (slsApiType != null)
+                        {
+                            _slsSetLevelMethod = slsApiType.GetMethod("SetCreatureLevel", 
+                                BindingFlags.Public | BindingFlags.Static);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Logg.LogWarning($"Failed to initialize SLS API: {ex.Message}");
+                    }
+                    _slsInitialized = true;
+                }
+
+                if (_slsSetLevelMethod != null)
+                {
+                    try
+                    {
+                        _slsSetLevelMethod.Invoke(null, new object[] { character, level });
+                        return true;
+                    }
+                    catch (Exception ex)
+                    {
+                        Logg.LogWarning($"Failed to invoke SLS API for {character.name}: {ex.Message}");
+                    }
+                }
+                
+                return false;
             }
         }
 
