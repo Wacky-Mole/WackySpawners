@@ -29,7 +29,7 @@ namespace WackySpawners
     public class WackySpawner : BaseUnityPlugin
     {
         internal const string ModName = "WackySpawners";
-        internal const string ModVersion = "1.1.0";
+        internal const string ModVersion = "1.1.1";
         internal const string Author = "WackyMole";
         private const string ModGUID = Author + "." + ModName;
         private static string ConfigFileName = ModGUID + ".cfg";
@@ -73,7 +73,9 @@ namespace WackySpawners
             assetPathWacky = Path.Combine(BepInEx.Paths.ConfigPath, WackyYML);
             spawnClass = new YMLSpawnLoader();
 
-            if (File.Exists(assetPathWacky)) {
+            string[] customConfigs = Directory.GetFiles(BepInEx.Paths.ConfigPath, "*.yml").Where(f => Path.GetFileName(f).StartsWith("WackyMole.CustomSpawners", StringComparison.OrdinalIgnoreCase)).ToArray();
+
+            if (customConfigs.Length > 0) {
                 ymlspawn = spawnClass.GetSpawnAreaConfigs();
 
             } else if (File.Exists(OldFile) )
@@ -376,6 +378,7 @@ namespace WackySpawners
                 }
                 
 
+
                 if (currentcustomSpawner.TryGetComponent<WearNTear>(out WearNTear temp))
                     Object.Destroy(currentcustomSpawner.GetComponent<WearNTear>());
                 temp = null;
@@ -415,7 +418,7 @@ namespace WackySpawners
                 piece2.m_targetNonPlayerBuilt = areaConfig.mobTarget;
 
 
-
+                
 
                 foreach (string prefab in areaConfig.m_prefabName.Split(','))
                 {
@@ -487,8 +490,7 @@ namespace WackySpawners
             watcher.SynchronizingObject = ThreadingHelper.SynchronizingObject;
             watcher.EnableRaisingEvents = true;
 
-            if (!File.Exists(WackyFile)) return;
-            FileSystemWatcher watcher2 = new(BepInEx.Paths.ConfigPath, WackyYML);
+            FileSystemWatcher watcher2 = new(BepInEx.Paths.ConfigPath, "*.yml");
             watcher2.Changed += ReadSpawnerValues;
             watcher2.Created += ReadSpawnerValues;
             watcher2.Renamed += ReadSpawnerValues;
@@ -498,7 +500,8 @@ namespace WackySpawners
         }
         private void ReadSpawnerValues (object sender, FileSystemEventArgs e)
         {
-            if (!File.Exists(WackyFile)) return;
+            string fileName = Path.GetFileName(e.FullPath);
+            if (!fileName.StartsWith("WackyMole.CustomSpawners", StringComparison.OrdinalIgnoreCase)) return;
 
             ZNet zNet = ZNet.instance;
             if (zNet == null) return;

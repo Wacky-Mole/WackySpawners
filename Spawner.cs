@@ -27,12 +27,36 @@ namespace WackySpawners
 
 
             public WackySpawns GetSpawnAreaConfigs()
-                {
+            {
                 var deslizer = new DeserializerBuilder().Build();
-                WackySpawns pieces = deslizer.Deserialize<WackySpawns>(File.ReadAllText(WackySpawner.assetPathWacky));
-                //WackySpawner.ymlspawn = pieces;
-                return pieces;
+                WackySpawns allPieces = new WackySpawns { spawners = new List<Spawner>() };
+
+                // Get all matching files
+                string configPath = BepInEx.Paths.ConfigPath;
+                string[] files = Directory.GetFiles(configPath, "*.yml", SearchOption.TopDirectoryOnly);
+
+                foreach (string file in files)
+                {
+                    string fileName = Path.GetFileName(file);
+                    if (fileName.StartsWith("WackyMole.CustomSpawners", StringComparison.OrdinalIgnoreCase))
+                    {
+                        try
+                        {
+                            WackySpawns pieces = deslizer.Deserialize<WackySpawns>(File.ReadAllText(file));
+                            if (pieces != null && pieces.spawners != null)
+                            {
+                                allPieces.spawners.AddRange(pieces.spawners);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            WackySpawner.Logg.LogError($"Error loading config file {file}: {ex.Message}");
+                        }
+                    }
                 }
+                
+                return allPieces;
+            }
 
             public WackySpawns GetSpawnAreaConfigs(string yml)
                 {
