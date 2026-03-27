@@ -26,6 +26,8 @@ using System.Runtime.CompilerServices;
 namespace WackySpawners
 {
     [BepInPlugin(ModGUID, ModName, ModVersion)]
+    // Required to ensure that you load after the specified mod, if its available
+    [BepInDependency("MidnightsFX.StarLevelSystem", BepInDependency.DependencyFlags.SoftDependency)]
     public class WackySpawner : BaseUnityPlugin
     {
         internal const string ModName = "WackySpawners";
@@ -285,12 +287,9 @@ namespace WackySpawners
                                     }
                                 }
 
-                                if (i > 1)
-                                {
-                                    if (!TrySetSLSLevel(component2, i))
-                                    {
-                                        component2.SetLevel(i);
-                                    }
+                                if (StarLevelSystem.API.IsAvailable) {
+                                    StarLevelSystem.API.SetCreatureLevel(component2, i);
+                                    StarLevelSystem.API.ApplyCreatureUpdates(component2); // This will re-calculate the creature size based on the level applied
                                 }
                             }
 
@@ -301,45 +300,6 @@ namespace WackySpawners
                         
                     }
                 }
-            }
-
-            private static bool _slsInitialized = false;
-            private static MethodInfo _slsSetLevelMethod = null;
-
-            private static bool TrySetSLSLevel(Character character, int level)
-            {
-                if (!_slsInitialized)
-                {
-                    try
-                    {
-                        Type slsApiType = Type.GetType("StarLevelSystem.API, StarLevelSystem");
-                        if (slsApiType != null)
-                        {
-                            _slsSetLevelMethod = slsApiType.GetMethod("SetCreatureLevel", 
-                                BindingFlags.Public | BindingFlags.Static);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Logg.LogWarning($"Failed to initialize SLS API: {ex.Message}");
-                    }
-                    _slsInitialized = true;
-                }
-
-                if (_slsSetLevelMethod != null)
-                {
-                    try
-                    {
-                        _slsSetLevelMethod.Invoke(null, new object[] { character, level });
-                        return true;
-                    }
-                    catch (Exception ex)
-                    {
-                        Logg.LogWarning($"Failed to invoke SLS API for {character.name}: {ex.Message}");
-                    }
-                }
-                
-                return false;
             }
         }
 
