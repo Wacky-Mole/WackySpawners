@@ -1,0 +1,13 @@
+[1mdiff --git a/Plugin.cs b/Plugin.cs[m
+[1mindex 904b750..b18dcdc 100644[m
+[1m--- a/Plugin.cs[m
+[1m+++ b/Plugin.cs[m
+[36m@@ -31,7 +31,7 @@[m [mnamespace WackySpawners[m
+     public class WackySpawner : BaseUnityPlugin[m
+     {[m
+         internal const string ModName = "WackySpawners";[m
+[31m-        internal const string ModVersion = "1.1.1";[m
+[32m+[m[32m        internal const string ModVersion = "1.1.2";[m
+         internal const string Author = "WackyMole";[m
+         private const string ModGUID = Author + "." + ModName;[m
+         private static string ConfigFileName = ModGUID + ".cfg";[m
