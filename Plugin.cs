@@ -31,7 +31,7 @@ namespace WackySpawners
     public class WackySpawner : BaseUnityPlugin
     {
         internal const string ModName = "WackySpawners";
-        internal const string ModVersion = "1.1.2";
+        internal const string ModVersion = "1.1.3";
         internal const string Author = "WackyMole";
         private const string ModGUID = Author + "." + ModName;
         private static string ConfigFileName = ModGUID + ".cfg";
@@ -303,6 +303,33 @@ namespace WackySpawners
             }
         }
 
+        private static void RegisterSpawnerPrefab(GameObject prefab)
+        {
+            ZNetScene znetScene = ZNetScene.instance;
+            if (!prefab || !znetScene) return;
+
+            int prefabHash = prefab.name.GetStableHashCode();
+            if (znetScene.m_namedPrefabs.TryGetValue(prefabHash, out GameObject registeredPrefab))
+            {
+                if (registeredPrefab != prefab)
+                    Logg.LogWarning($"Spawner prefab hash collision for {prefab.name}");
+
+                return;
+            }
+
+            if (prefab.GetComponent<ZNetView>() != null)
+            {
+                if (!znetScene.m_prefabs.Contains(prefab))
+                    znetScene.m_prefabs.Add(prefab);
+            }
+            else if (!znetScene.m_nonNetViewPrefabs.Contains(prefab))
+            {
+                znetScene.m_nonNetViewPrefabs.Add(prefab);
+            }
+
+            znetScene.m_namedPrefabs.Add(prefabHash, prefab);
+        }
+
         public static void CreateandUpdateSpawnConfigs(List<Spawner> list)
         {
            
@@ -434,6 +461,8 @@ namespace WackySpawners
 
                     area2.m_prefabs.Add(newArea);
                 }
+
+                RegisterSpawnerPrefab(currentcustomSpawner);
 
                 if (ZNet.instance.IsServer() && ZNet.instance.IsDedicated())
                     continue;
