@@ -14,3 +14,4 @@
 | 1.1.1     |  Added support for multiple yml config files starting with wackymole.customspawners. </br> Added Support for Star Level System mod | 
 | 1.1.2     |  Fixed support for Star Level System mod by MidnightsFX | 
 | 1.1.3     |  Extra checks for Znet m_namedPrefabs| 
+| 1.1.4     |  Update Deep North| 
