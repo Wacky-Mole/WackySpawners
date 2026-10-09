@@ -31,7 +31,7 @@ namespace WackySpawners
     public class WackySpawner : BaseUnityPlugin
     {
         internal const string ModName = "WackySpawners";
-        internal const string ModVersion = "1.1.4";
+        internal const string ModVersion = "1.1.5";
         internal const string Author = "WackyMole";
         private const string ModGUID = Author + "." + ModName;
         private static string ConfigFileName = ModGUID + ".cfg";
@@ -128,7 +128,7 @@ namespace WackySpawners
 
             Logg.LogInfo("Wacky.Spawners, Sync, reloading");
 
-            if (hasAwake && spawnerInfo.Value != "")
+            if (hasAwake && ZNetScene.instance && ObjectDB.instance && spawnerInfo.Value != "")
             {
                 var copystring = spawnerInfo.Value;
                 ymlspawn = spawnClass.GetSpawnAreaConfigs(copystring);                
@@ -185,7 +185,6 @@ namespace WackySpawners
             {
                 if (ZNet.instance.IsServer())
                 {
-                    CreateandUpdateSpawnConfigs(ymlspawn.spawners); // On Start
                     var serializer = new SerializerBuilder()
                        // .WithNewLine("\n")
                          .Build();
@@ -201,8 +200,22 @@ namespace WackySpawners
         public static class OnSpawnedCheckSpawnerWac
         {
             private static void Postfix()
-            {         
+            {
                 hasAwake = true;
+                if (ZNetScene.instance && ObjectDB.instance &&
+                    (ConfigSync.IsSourceOfTruth || !string.IsNullOrEmpty(spawnerInfo.Value)) && ymlspawn?.spawners != null)
+                    CreateandUpdateSpawnConfigs(ymlspawn.spawners);
+            }
+        }
+
+        [HarmonyPatch(typeof(ZNetScene), "Awake")]
+        public static class RegisterSpawnersInScene
+        {
+            private static void Postfix()
+            {
+                if (hasAwake && ObjectDB.instance &&
+                    (ConfigSync.IsSourceOfTruth || !string.IsNullOrEmpty(spawnerInfo.Value)) && ymlspawn?.spawners != null)
+                    CreateandUpdateSpawnConfigs(ymlspawn.spawners);
             }
         }
 
@@ -548,7 +561,7 @@ namespace WackySpawners
                 spawnerInfo.Value = serializer.Serialize(ymlspawn);
 
                 
-                if (ConfigSync.IsSourceOfTruth)
+                if (ConfigSync.IsSourceOfTruth && hasAwake && ZNetScene.instance && ObjectDB.instance)
                     CreateandUpdateSpawnConfigs(ymlspawn.spawners); // On update singleplayer or host
             }
 
