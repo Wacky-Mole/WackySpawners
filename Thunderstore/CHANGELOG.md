@@ -17,3 +17,4 @@
 | 1.1.4     |  Update Deep North| 
 | 1.1.5     |  Bug fix for missing Hashes on dedicated servers. | 
 | 1.1.6     |  Bug fix. Added a config for admins to see custom spawner information on hover. | 
+| 1.1.7     |  Bug fix. | 

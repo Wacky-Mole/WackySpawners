@@ -31,7 +31,7 @@ namespace WackySpawners
     public class WackySpawner : BaseUnityPlugin
     {
         internal const string ModName = "WackySpawners";
-        internal const string ModVersion = "1.1.6";
+        internal const string ModVersion = "1.1.7";
         internal const string Author = "WackyMole";
         private const string ModGUID = Author + "." + ModName;
         private static string ConfigFileName = ModGUID + ".cfg";
@@ -227,7 +227,7 @@ namespace WackySpawners
         public class UpdateSpawnView
         {
             public static bool Prefix(SpawnArea __instance) =>
-                __instance.m_nview && ValidateCustomSpawnPrefabs(__instance);
+                __instance && __instance.m_nview && ValidateSpawnPrefabs(__instance);
         }
 
         private static bool IsCustomSpawnArea(SpawnArea area) =>
@@ -278,15 +278,15 @@ namespace WackySpawners
             }
         }
 
-        // Unity's null check also detects destroyed prefab objects. Clean the live list
-        // before vanilla counting/selection can dereference an invalid entry.
-        private static bool ValidateCustomSpawnPrefabs(SpawnArea area)
+        // Counting also runs on vanilla/copied areas. Unity's null check detects
+        // destroyed objects as well as missing prefabs; do not limit this to CS_ names.
+        private static bool ValidateSpawnPrefabs(SpawnArea area)
         {
-            if (!IsCustomSpawnArea(area)) return true;
+            if (!area) return false;
 
             if (area.m_prefabs == null)
             {
-                Logg.LogWarning($"Custom spawner {area.name}: spawn list was null; spawning disabled until reconfigured.");
+                Logg.LogWarning($"SpawnArea {area.name}: spawn list was null; spawning disabled until reconfigured.");
                 area.m_prefabs = new List<SpawnArea.SpawnData>();
             }
 
@@ -295,11 +295,24 @@ namespace WackySpawners
                 var entry = area.m_prefabs[i];
                 if (entry != null && entry.m_prefab) continue;
 
-                Logg.LogWarning($"Custom spawner {area.name}: removed invalid spawn entry at index {i} (missing or destroyed prefab).");
+                Logg.LogWarning($"SpawnArea {area.name}: removed invalid spawn entry at index {i} (missing or destroyed prefab).");
                 area.m_prefabs.RemoveAt(i);
             }
 
             return area.m_prefabs.Count > 0;
+        }
+
+        [HarmonyPatch(typeof(SpawnArea), "GetInstances")]
+        public class ValidateSpawnInstances
+        {
+            public static bool Prefix(SpawnArea __instance, ref int __0, ref int __1)
+            {
+                if (ValidateSpawnPrefabs(__instance)) return true;
+
+                __0 = 0;
+                __1 = 0;
+                return false;
+            }
         }
 
         [HarmonyPatch(typeof(SpawnArea), "IsSpawnPrefab")]
@@ -307,10 +320,25 @@ namespace WackySpawners
         {
             public static bool Prefix(SpawnArea __instance, GameObject go, ref bool __result)
             {
-                if (!IsCustomSpawnArea(__instance)) return true;
-                if (ValidateCustomSpawnPrefabs(__instance) && go) return true;
-
                 __result = false;
+                if (!go || !ValidateSpawnPrefabs(__instance)) return false;
+
+                // Preserve vanilla matching, including non-Character objects and
+                // tame exclusion, without dereferencing null SpawnData/prefabs.
+                string instanceName = go.name;
+                if (instanceName == null) return false;
+                Character character = go.GetComponent<Character>();
+                foreach (SpawnArea.SpawnData entry in __instance.m_prefabs)
+                {
+                    if (entry == null || !entry.m_prefab) continue;
+                    string prefabName = entry.m_prefab.name;
+                    if (prefabName != null && instanceName.CustomStartsWith(prefabName) &&
+                        (!character || !character.IsTamed()))
+                    {
+                        __result = true;
+                        break;
+                    }
+                }
                 return false;
             }
         }
@@ -320,7 +348,7 @@ namespace WackySpawners
         {
             public static bool Prefix(SpawnArea __instance, ref SpawnArea.SpawnData __result)
             {
-                if (ValidateCustomSpawnPrefabs(__instance)) return true;
+                if (ValidateSpawnPrefabs(__instance)) return true;
 
                 __result = null;
                 return false;
@@ -332,7 +360,7 @@ namespace WackySpawners
         {
             public static bool Prefix(SpawnArea __instance, ref bool __result)
             {
-                if (ValidateCustomSpawnPrefabs(__instance)) return true;
+                if (ValidateSpawnPrefabs(__instance)) return true;
 
                 __result = false;
                 return false;
@@ -340,7 +368,7 @@ namespace WackySpawners
 
             public static void Postfix(SpawnArea __instance, bool __result)
             {
-                if (__result && IsCustomSpawnArea(__instance) && ValidateCustomSpawnPrefabs(__instance))
+                if (__result && IsCustomSpawnArea(__instance) && ValidateSpawnPrefabs(__instance))
                 {
                    // Logg.LogWarning("Name " + __instance.name);
                     if (Multispawn.ContainsKey(__instance.name))
