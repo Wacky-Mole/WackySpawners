@@ -27,6 +27,7 @@ For example wackymole.customspawners.marshyman69.yml
 - Default file will be created if none exist, with examples.
 - Custom Spawners drop nothing when they are destroyed
 - MultiSpawn at once!
+- Config for Admins to see if a piece is a spawner and what it spawns on hover.
 
 ### WackyMole.CustomSpawners.yml
 

@@ -104,6 +104,9 @@ namespace WackySpawners
                 "If on, the configuration is locked and can be changed by server admins only.");
             _ = ConfigSync.AddLockingConfigEntry(_serverConfigLocked);
 
+            _showAdminSpawnerHover = config("2 - Client", "Show Admin Spawner Hover", false,
+                "Show custom spawner information when an admin hovers over a placed spawner. Disable to skip hover lookups and formatting. Hammer-menu descriptions are unaffected.");
+
             // Globally turn off configuration options for your pieces, omit if you don't want to do this.
 
             spawnerInfo.ValueChanged += CustomSpawnerSync;
@@ -229,6 +232,51 @@ namespace WackySpawners
 
         private static bool IsCustomSpawnArea(SpawnArea area) =>
             area && area.name.StartsWith("CS_", StringComparison.Ordinal);
+
+        private static string GetSpawnerSummary(SpawnArea area, string displayName = null)
+        {
+            if (string.IsNullOrEmpty(displayName))
+            {
+                displayName = area.name.Substring("CS_".Length);
+                if (displayName.EndsWith("(Clone)", StringComparison.Ordinal))
+                    displayName = displayName.Substring(0, displayName.Length - "(Clone)".Length);
+            }
+
+            // Read only: displaying information must not change spawning state.
+            var names = area.m_prefabs?
+                .Where(entry => entry != null && entry.m_prefab)
+                .Select(entry => entry.m_prefab.name)
+                .Distinct()
+                .ToArray();
+            string spawning = names != null && names.Length > 0
+                ? string.Join(", ", names)
+                : "No valid spawn prefabs";
+            return $"Custom Spawner: {displayName}\nSpawns: {spawning}";
+        }
+
+        // Append at the HUD layer so copied pieces with different Hoverable
+        // components all show the information without replacing their hover text.
+        [HarmonyPatch(typeof(Hud), "UpdateCrosshair")]
+        public class ShowAdminSpawnerInfo
+        {
+            public static void Postfix(Hud __instance, Player player)
+            {
+                if (!_showAdminSpawnerHover.Value) return;
+                if (!player || !SynchronizationManager.Instance.PlayerIsAdmin || !__instance.m_hoverName) return;
+
+                GameObject hovered = player.GetHoverObject();
+                if (!hovered) return;
+                SpawnArea area = hovered.GetComponentInParent<SpawnArea>();
+                if (!IsCustomSpawnArea(area)) return;
+
+                string summary = GetSpawnerSummary(area);
+                string existingText = __instance.m_hoverName.text;
+                __instance.m_hoverName.text = string.IsNullOrEmpty(existingText)
+                    ? summary
+                    : existingText + "\n\n" + summary;
+                __instance.m_hoverName.enabled = true;
+            }
+        }
 
         // Unity's null check also detects destroyed prefab objects. Clean the live list
         // before vanilla counting/selection can dereference an invalid entry.
@@ -501,7 +549,7 @@ namespace WackySpawners
                 area2.m_levelupChance = areaConfig.m_levelupChance;
                 area2.m_nearRadius = areaConfig.m_nearRadius;
                 area2.m_prefabs = new List<SpawnArea.SpawnData>();
-                piece2.m_description = areaConfig.name + " ";
+                piece2.m_name = areaConfig.name + " (Spawner)";
                 piece2.name = currentcustomSpawner.name;
                
 
@@ -527,7 +575,6 @@ namespace WackySpawners
                     newArea.m_minLevel = areaConfig.minLevel;
                     newArea.m_maxLevel = areaConfig.maxLevel;
                     newArea.m_prefab = spawnPrefab;
-                    piece2.m_description += prefab + " ";
 
                     area2.m_prefabs.Add(newArea);
                 }
@@ -537,6 +584,8 @@ namespace WackySpawners
                 else
                     foreach (var entry in area2.m_prefabs)
                         entry.m_weight = 100f / area2.m_prefabs.Count;
+
+                piece2.m_description = GetSpawnerSummary(area2, areaConfig.name);
 
                 RegisterSpawnerPrefab(currentcustomSpawner);
 
@@ -649,6 +698,7 @@ namespace WackySpawners
         #region ConfigOptions
 
         private static ConfigEntry<Toggle> _serverConfigLocked = null!;
+        private static ConfigEntry<bool> _showAdminSpawnerHover = null!;
 
         private ConfigEntry<T> config<T>(string group, string name, T value, ConfigDescription description,
             bool synchronizedSetting = true)
