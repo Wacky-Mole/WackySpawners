@@ -16,3 +16,4 @@
 | 1.1.3     |  Extra checks for Znet m_namedPrefabs| 
 | 1.1.4     |  Update Deep North| 
 | 1.1.5     |  Bug fix for missing Hashes on dedicated servers. | 
+| 1.1.6     |  Bug fix . | 

@@ -31,7 +31,7 @@ namespace WackySpawners
     public class WackySpawner : BaseUnityPlugin
     {
         internal const string ModName = "WackySpawners";
-        internal const string ModVersion = "1.1.5";
+        internal const string ModVersion = "1.1.6";
         internal const string Author = "WackyMole";
         private const string ModGUID = Author + "." + ModName;
         private static string ConfigFileName = ModGUID + ".cfg";
@@ -223,29 +223,76 @@ namespace WackySpawners
         [HarmonyPatch(typeof(SpawnArea), "UpdateSpawn")]
         public class UpdateSpawnView
         {
-            public static bool Prefix(SpawnArea __instance) => __instance.m_nview;
+            public static bool Prefix(SpawnArea __instance) =>
+                __instance.m_nview && ValidateCustomSpawnPrefabs(__instance);
         }
 
-        /*
-        [HarmonyPatch(typeof(SpawnArea), "IsSpawnPrefab")]  // This was causing regular vanilla spawners to go out of control for some reason in 218.21
-        public class FixErrorSometimes
+        private static bool IsCustomSpawnArea(SpawnArea area) =>
+            area && area.name.StartsWith("CS_", StringComparison.Ordinal);
+
+        // Unity's null check also detects destroyed prefab objects. Clean the live list
+        // before vanilla counting/selection can dereference an invalid entry.
+        private static bool ValidateCustomSpawnPrefabs(SpawnArea area)
         {
-            public static bool Prefix(GameObject go)
-            {
-                if (go  == null ) return false;
-                if (go.GetComponent<SpawnArea>() == null ) return false;
+            if (!IsCustomSpawnArea(area)) return true;
 
-                return true;
-            }          
+            if (area.m_prefabs == null)
+            {
+                Logg.LogWarning($"Custom spawner {area.name}: spawn list was null; spawning disabled until reconfigured.");
+                area.m_prefabs = new List<SpawnArea.SpawnData>();
+            }
+
+            for (int i = area.m_prefabs.Count - 1; i >= 0; i--)
+            {
+                var entry = area.m_prefabs[i];
+                if (entry != null && entry.m_prefab) continue;
+
+                Logg.LogWarning($"Custom spawner {area.name}: removed invalid spawn entry at index {i} (missing or destroyed prefab).");
+                area.m_prefabs.RemoveAt(i);
+            }
+
+            return area.m_prefabs.Count > 0;
         }
-        */
+
+        [HarmonyPatch(typeof(SpawnArea), "IsSpawnPrefab")]
+        public class ValidateSpawnCounting
+        {
+            public static bool Prefix(SpawnArea __instance, GameObject go, ref bool __result)
+            {
+                if (!IsCustomSpawnArea(__instance)) return true;
+                if (ValidateCustomSpawnPrefabs(__instance) && go) return true;
+
+                __result = false;
+                return false;
+            }
+        }
+
+        [HarmonyPatch(typeof(SpawnArea), "SelectWeightedPrefab")]
+        public class ValidateSpawnSelection
+        {
+            public static bool Prefix(SpawnArea __instance, ref SpawnArea.SpawnData __result)
+            {
+                if (ValidateCustomSpawnPrefabs(__instance)) return true;
+
+                __result = null;
+                return false;
+            }
+        }
         
         [HarmonyPatch(typeof(SpawnArea), "SpawnOne")]
         public class UpdateSpawnAmount
         {
+            public static bool Prefix(SpawnArea __instance, ref bool __result)
+            {
+                if (ValidateCustomSpawnPrefabs(__instance)) return true;
+
+                __result = false;
+                return false;
+            }
+
             public static void Postfix(SpawnArea __instance, bool __result)
             {
-                if (__result)
+                if (__result && IsCustomSpawnArea(__instance) && ValidateCustomSpawnPrefabs(__instance))
                 {
                    // Logg.LogWarning("Name " + __instance.name);
                     if (Multispawn.ContainsKey(__instance.name))
@@ -268,7 +315,7 @@ namespace WackySpawners
                         {
 
                             SpawnArea.SpawnData spawnData = __instance.SelectWeightedPrefab();
-                            if (spawnData == null)
+                            if (spawnData == null || !spawnData.m_prefab)
                             {
                                 return;
                             }
@@ -289,7 +336,7 @@ namespace WackySpawners
                             }
 
                             Character component2 = gameObject.GetComponent<Character>();
-                            if (spawnData.m_maxLevel > 1)
+                            if (component2 && spawnData.m_maxLevel > 1)
                             {
                                 int i;
                                 for (i = spawnData.m_minLevel; i < spawnData.m_maxLevel; i++)
@@ -306,7 +353,7 @@ namespace WackySpawners
                                 }
                             }
 
-                            Vector3 centerPoint = component2.GetCenterPoint();
+                            Vector3 centerPoint = component2 ? component2.GetCenterPoint() : gameObject.transform.position;
                             __instance.m_spawnEffects.Create(centerPoint, Quaternion.identity);
 
                         }
@@ -383,7 +430,10 @@ namespace WackySpawners
 
                     customSpawner.GetComponent<ZNetView>().m_syncInitialScale = true;
 
-                    SpawnArea area = customSpawner.AddComponent<SpawnArea>();
+                    // Cloning a vanilla spawner already copies its SpawnArea.
+                    // Adding another leaves an unconfigured component ticking too.
+                    SpawnArea area = customSpawner.GetComponent<SpawnArea>();
+                    if (!area) area = customSpawner.AddComponent<SpawnArea>();
                     Piece piece = customSpawner.GetComponent<Piece>();
                     if (piece is null) piece = customSpawner.AddComponent<Piece>();
 
@@ -462,18 +512,31 @@ namespace WackySpawners
 
                 
 
-                foreach (string prefab in areaConfig.m_prefabName.Split(','))
+                string[] prefabNames = (areaConfig.m_prefabName ?? string.Empty).Split(',');
+                foreach (string configuredName in prefabNames)
                 {
+                    string prefab = configuredName.Trim();
+                    GameObject spawnPrefab = string.IsNullOrEmpty(prefab) ? null : PrefabManager.Instance.GetPrefab(prefab);
+                    if (!spawnPrefab)
+                    {
+                        Logg.LogWarning($"Custom spawner {newName}: configured spawn prefab '{configuredName}' was empty or not found; entry skipped.");
+                        continue;
+                    }
+
                     var newArea = new SpawnArea.SpawnData();
-                    newArea.m_weight = 100 / areaConfig.m_prefabName.Split(',').Count();
                     newArea.m_minLevel = areaConfig.minLevel;
                     newArea.m_maxLevel = areaConfig.maxLevel;
-                    newArea.m_prefab = PrefabManager.Instance.GetPrefab(prefab);
+                    newArea.m_prefab = spawnPrefab;
                     piece2.m_description += prefab + " ";
-                    if (newArea.m_prefab == null) continue;
 
                     area2.m_prefabs.Add(newArea);
                 }
+
+                if (area2.m_prefabs.Count == 0)
+                    Logg.LogWarning($"Custom spawner {newName}: no valid spawn prefabs; spawning disabled until reconfigured.");
+                else
+                    foreach (var entry in area2.m_prefabs)
+                        entry.m_weight = 100f / area2.m_prefabs.Count;
 
                 RegisterSpawnerPrefab(currentcustomSpawner);
 
