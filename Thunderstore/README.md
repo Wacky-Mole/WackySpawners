@@ -49,7 +49,7 @@ Live updates for new pieces, existing ones might not.
 - m_triggerDistance (int): Distance at which players trigger monster spawns. Players have to inside this line for spawns to be renewed
 - m_spawnIntervalSec (int): Time interval between monster spawns (in seconds).
 - m_levelupChance (int): Chance for monsters to level up when spawned.
-- m_prefabName (string): Name of the spawned monster prefab. Can be multiple. It is random on which it will spawn, BUT it Uses m_weight of mob to increase chances of spawning. Higher weight more likely to spawn
+- m_prefabName (string): Comma-separated names of monster prefabs to spawn. Each valid entry has an equal chance of being randomly selected; individual mob weights are not used.
 - m_nearRadius (int): What determines a NEAR Radius
 - m_farRadius (int): What determintes a FAR Radius.
 - minLevel (int): Minimum level for spawned monsters.
